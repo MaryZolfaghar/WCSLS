@@ -1,7 +1,7 @@
 from numpy.core.fromnumeric import reshape
 import torch 
 import numpy as np
-
+import pickle
 from itertools import combinations, permutations
 from sklearn.decomposition import PCA
 from sklearn.manifold import MDS, TSNE
@@ -689,7 +689,20 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
         hidd_dists.append(hidd_dist)
         grid_dists.append(grid_dist)
         grid_angles.append(grid_angle)
-    
+
+    cong_embed_dists = np.array(cong_embed_dists)
+    incong_embed_dists = np.array(incong_embed_dists)
+    cong_hidd_dists = np.array(cong_hidd_dists)
+    incong_hidd_dists = np.array(incong_hidd_dists)
+    embed_dists = np.array(embed_dists)
+    hidd_dists = np.array(hidd_dists)
+    grid_dists = np.array(grid_dists)
+    grid_angles = np.array(grid_angles)
+    dist_results = {'embed_dists': embed_dists, 'hidd_dists': hidd_dists,
+                    'grid_dists': grid_dists, 'grid_angles': grid_angles,
+                    'cong_embed_dists': cong_embed_dists, 'incong_embed_dists': incong_embed_dists,
+                    'cong_hidd_dists': cong_hidd_dists, 'incong_hidd_dists': incong_hidd_dists}
+
     if ((analysis_type=='corr') | (analysis_type=='all')):
         r_hidds = np.array(r_hidds)
         p_val_hidds = np.array(p_val_hidds)
@@ -699,11 +712,19 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
                         'p_val_embeds': p_val_embeds,
                         'r_hidds': r_hidds, 
                         'p_val_hidds': p_val_hidds}
+        results = {'corr_results': corr_results, 
+                   'dist_results': dist_results}
+        with open('../results/'+'corr_'+args.out_file, 'wb') as f:
+            pickle.dump(results, f)
     if ((analysis_type=='ratio') | (analysis_type=='all')):
         ratio_hidds = np.array(ratio_hidds)
         ratio_embeds = np.array(ratio_embeds)
         ratio_results = {'ratio_embeds': ratio_embeds, 
                          'ratio_hidds': ratio_hidds}
+        results = {'ratio_results': ratio_results, 
+                   'dist_results': dist_results}
+        with open('../results/'+'ratio_'+args.out_file, 'wb') as f:
+            pickle.dump(results, f)
     if ((analysis_type=='ttest') | (analysis_type=='all')):
         t_stat_embeds = np.array(t_stat_embeds)
         t_p_val_embeds = np.array(t_p_val_embeds)
@@ -713,6 +734,10 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
                          't_p_val_hidds': t_p_val_hidds,
                          't_stat_embeds': t_stat_embeds, 
                          't_p_val_embeds': t_p_val_embeds}
+        results = {'ttest_results': ttest_results,
+                   'dist_results': dist_results}
+        with open('../results/'+'ttest_'+args.out_file, 'wb') as f:
+            pickle.dump(results, f)
     if ((analysis_type=='regs') | (analysis_type=='all')):
         p_val_cat_regs = np.array(p_val_cat_regs)
         t_val_cat_regs = np.array(t_val_cat_regs)
@@ -740,27 +765,11 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
                     'bses': bse_con_regs}
         reg_results = {'cat_regs': cat_regs,
                        'con_regs': con_regs}
-    cong_embed_dists = np.array(cong_embed_dists)
-    incong_embed_dists = np.array(incong_embed_dists)
-    cong_hidd_dists = np.array(cong_hidd_dists)
-    incong_hidd_dists = np.array(incong_hidd_dists)
-    embed_dists = np.array(embed_dists)
-    hidd_dists = np.array(hidd_dists)
-    grid_dists = np.array(grid_dists)
-    grid_angles = np.array(grid_angles)
-
+        results = {'dist_results': dist_results,
+                   'reg_results': reg_results}
+        with open('../results/'+'reg_'+args.out_file, 'wb') as f:
+            pickle.dump(results, f)
     
-    dist_results = {'embed_dists': embed_dists, 'hidd_dists': hidd_dists,
-                    'grid_dists': grid_dists, 'grid_angles': grid_angles,
-                    'cong_embed_dists': cong_embed_dists, 'incong_embed_dists': incong_embed_dists,
-                    'cong_hidd_dists': cong_hidd_dists, 'incong_hidd_dists': incong_hidd_dists}
-    results = {'corr_results': corr_results,
-               'ttest_results': ttest_results,
-               'ratio_results': ratio_results, 
-               'dist_results': dist_results,
-               'reg_results': reg_results,
-               'pca_results': pca_results,
-               'tsne_results': tsne_results,
-               'mds_results': mds_results, }
+    
 
     return results

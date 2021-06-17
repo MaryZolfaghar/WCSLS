@@ -5,9 +5,6 @@
 
 echo "Process mlp starts"
 
-./scripts/local/run_mlp_corr.sh &
-./scripts/local/run_mlp_ratio.sh &
-./scripts/local/run_mlp_ttest.sh &
-./scripts/local/run_mlp_regs.sh
-wait
-
+python main.py \
+--cortical_model 'mlp' \
+--out_file 'results_mlp.P' \

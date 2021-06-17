@@ -167,14 +167,14 @@ def main(args):
                     done = True 
                     break
                 i += 1
-        print('num of checkpoints: ', len(cortical_run))
         cortical_runs.append(cortical_run)
         print("Cortical system training accuracy:", cortical_train_acc)
         print("Cortical system testing accuracy:", cortical_test_acc)
         print("Cortical system analyzing accuracy:", cortical_analyze_acc)
 
+    # End run
+    print('num of checkpoints: ', len(cortical_run))
     print('num of runs: ', len(cortical_runs))
-    
     print('done saving')
     # cortical_train_losses, cortical_system = train(meta, cortical_system, train_loader, args)
     cortical_train_losses = train_losses
@@ -184,7 +184,7 @@ def main(args):
     cortical_system.analyze=True
     cortical_analyze_acc, cortical_analyze_correct = test(meta, cortical_system, analyze_loader, args)
     cortical_system.analyze=False
-    print('done testing 2')
+    print('done second testing')
     cortical_mrun_results = analyze_cortical_mruns(cortical_runs, test_data, args)
     print('done analyzing')
     cortical_results = {'loss': cortical_train_losses,
@@ -199,13 +199,13 @@ def main(args):
     results = {'Episodic' : episodic_results,
                'Cortical' : cortical_results}
     
-    out_file = args.out_file + '_' + args.analysis_type + '.P'
-    with open('../results/'+out_file , 'wb') as f:
+    with open('../results/'+args.out_file, 'wb') as f:
         pickle.dump(results, f)
     print('done saving cortical_results')
-    with open('../results/'+'mruns_'+out_file, 'wb') as f:
-        pickle.dump(cortical_runs, f)
-    print('done saving cortical_mruns')
+
+    # with open('../results/'+'mruns_'+args.out_file, 'wb') as f:
+    #     pickle.dump(cortical_runs, f)
+    # print('done saving cortical_mruns')
 
 if __name__ == '__main__':
     args = parser.parse_args()
