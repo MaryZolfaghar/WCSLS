@@ -21,7 +21,7 @@ parser.add_argument('--seed', type=int, default=0,
                     help='Random seed')
 parser.add_argument('--print_every', type=int, default=200,
                     help='Number of steps before printing average loss')
-parser.add_argument('--out_file', default='results')
+parser.add_argument('--out_file', default='results.P')
 # Episodic memory system
 parser.add_argument('--N_episodic', type=int, default=1000,
                     help='Number of steps for pre-training episodic system')
