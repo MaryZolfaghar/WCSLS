@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
- 
-# conda activate /Users/maryam/opt/anaconda3/env/csls
 
-echo "Process rnn starts"
+# conda activate /Users/Maryam/anaconda3/envs/csls
+# /Users/Maryam/anaconda3/envs/csls
 
-python main.py \
---cortical_model 'rnn' \
---out_file 'results_rnn.P' \
+echo "Process mlp starts"
+
+./scripts/local/run_rnn_corr.sh &
+./scripts/local/run_rnn_ratio.sh &
+./scripts/local/run_rnn_ttest.sh &
+./scripts/local/run_rnn_regs.sh
+wait
+

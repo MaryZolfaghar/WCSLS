@@ -3,8 +3,11 @@
 # conda activate /Users/Maryam/anaconda3/envs/csls
 # /Users/Maryam/anaconda3/envs/csls
 
-echo "Process mlp with hidden reps after the ReLU starts"
+echo "Process mlp starts"
 
-python main.py \
---cortical_model 'mlp' \
---out_file 'results_mlp.P' \
+./scripts/local/run_mlp_corr.sh &
+./scripts/local/run_mlp_ratio.sh &
+./scripts/local/run_mlp_ttest.sh &
+./scripts/local/run_mlp_regs.sh
+wait
+

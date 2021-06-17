@@ -2,6 +2,7 @@ import argparse
 import torch 
 import torch.nn as nn
 import pickle
+import json
 import random
 import numpy as np 
 
@@ -10,7 +11,7 @@ from models import EpisodicSystem, CorticalSystem, RecurrentCorticalSystem
 from train import train
 from test import test
 from analyze import analyze_episodic, analyze_cortical, analyze_cortical_mruns
-
+#
 
 parser = argparse.ArgumentParser()
 # Setup
@@ -20,7 +21,7 @@ parser.add_argument('--seed', type=int, default=0,
                     help='Random seed')
 parser.add_argument('--print_every', type=int, default=200,
                     help='Number of steps before printing average loss')
-parser.add_argument('--out_file', default='results.P')
+parser.add_argument('--out_file', default='results')
 # Episodic memory system
 parser.add_argument('--N_episodic', type=int, default=1000,
                     help='Number of steps for pre-training episodic system')
@@ -33,7 +34,7 @@ parser.add_argument('--lr_episodic', type=float, default=0.001,
 # Cortical system
 parser.add_argument('--use_images', action='store_false',
                     help='Use full face images and CNN for cortical system')
-parser.add_argument('--cortical_model', type=str,
+parser.add_argument('--cortical_model', type=str, default='rnn',
                     help='Use a recurrent neural network (LSTM) or MLP for cortical system')
 parser.add_argument('--image_dir', default='images/',
                     help='Path to directory containing face images')
@@ -43,14 +44,14 @@ parser.add_argument('--bs_cortical', type=int, default=32,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
                     help='Learning rate for cortical system')
-parser.add_argument('--nruns_cortical', type=int, default=10, # 20
+parser.add_argument('--nruns_cortical', type=int, default=20, # 20
                     help='Number of runs for cortical system')
-parser.add_argument('--checkpoints', type=int, default=50, #50
+parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
 parser.add_argument('--before_ReLU', action='store_true',
                     help='Whether use hidden reps. of MLP before the ReLU')
-# parser.add_argument('--out_type', type=str, default='out_seq',
-#                     help='Whether use the last hidd or the whole sequence to fed into the linear output')
+parser.add_argument('--analysis_type', type=str, default='all',
+                    help='What analysis to do after the multiple runs')
 
 def main(args):
     # CUDA
@@ -91,7 +92,7 @@ def main(args):
     meta = False # cortical learning is vanilla
     cortical_runs = []
     for run in range(args.nruns_cortical):
-        cortical_results = []
+        cortical_run = []
         if args.cortical_model=='rnn':
             print('Cortical system is running with an LSTM')
             cortical_system = RecurrentCorticalSystem(use_images=args.use_images).to(device)
@@ -160,48 +161,54 @@ def main(args):
                     cortical_result['train_acc'] = cortical_train_acc
                     cortical_result['test_acc'] = cortical_test_acc
                     cortical_result['analyze_acc'] = cortical_analyze_acc,
-                    cortical_results.append(cortical_result)
+                    cortical_run.append(cortical_result)
                     
                 if i >= N:
                     done = True 
                     break
                 i += 1
-        print('num of checkpoints: ', len(cortical_results))
-        cortical_runs.append(cortical_results)
+        print('num of checkpoints: ', len(cortical_run))
+        cortical_runs.append(cortical_run)
         print("Cortical system training accuracy:", cortical_train_acc)
         print("Cortical system testing accuracy:", cortical_test_acc)
         print("Cortical system analyzing accuracy:", cortical_analyze_acc)
 
     print('num of runs: ', len(cortical_runs))
-    with open('results/'+'mruns_'+args.out_file, 'wb') as f:
-        pickle.dump(cortical_runs, f)
-    print('don saving')
+    
+    print('done saving')
     # cortical_train_losses, cortical_system = train(meta, cortical_system, train_loader, args)
     cortical_train_losses = train_losses
     cortical_train_acc, _ = test(meta, cortical_system, train_loader, args)
     cortical_test_acc, _ = test(meta, cortical_system, test_loader, args)
-    print('don testing')
+    print('done testing')
     cortical_system.analyze=True
     cortical_analyze_acc, cortical_analyze_correct = test(meta, cortical_system, analyze_loader, args)
     cortical_system.analyze=False
-    print('don testing 2')
-    cortical_results = analyze_cortical_mruns(cortical_runs, test_data, args)
-    print('don analyzing')
+    print('done testing 2')
+    cortical_mrun_results = analyze_cortical_mruns(cortical_runs, test_data, args)
+    print('done analyzing')
     cortical_results = {'loss': cortical_train_losses,
                         'train_acc': cortical_train_acc,
                         'test_acc': cortical_test_acc,
                         'analyze_acc': cortical_analyze_acc,
                         'analyze_correct': cortical_analyze_correct,
-                        'analysis': cortical_results,
-                        'cortical_runs': cortical_runs}
+                        'analysis': cortical_mrun_results}
     if not args.use_em:
         episodic_results = {}
-    # Save results
+    
     results = {'Episodic' : episodic_results,
-            'Cortical' : cortical_results}
-    with open('results/'+args.out_file, 'wb') as f:
+               'Cortical' : cortical_results}
+    
+    out_file = args.out_file + '_' + args.analysis_type + '.P'
+    with open('../results/'+out_file , 'wb') as f:
         pickle.dump(results, f)
+    print('done saving cortical_results')
+    with open('../results/'+'mruns_'+out_file, 'wb') as f:
+        pickle.dump(cortical_runs, f)
+    print('done saving cortical_mruns')
+
 if __name__ == '__main__':
     args = parser.parse_args()
+    
     print(args)
     main(args)

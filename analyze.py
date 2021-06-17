@@ -554,6 +554,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
     idx2loc = {idx:loc for loc, idx in loc2idx.items()}
     idxs = [idx for idx in range(n_states)]
     locs = [idx2loc[idx] for idx in idxs]
+    analysis_type = args.analysis_type
 
     checkpoints = len(cortical_results[0])
     r_hidds, p_val_hidds, r_embeds, p_val_embeds = ([] for i in range(4))
@@ -563,21 +564,23 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
     p_val_con_regs, t_val_con_regs, param_con_regs, bse_con_regs, y_con_regs, y_hat_E_con_regs = ([] for i in range(6))
     cong_embed_dists, incong_embed_dists, cong_hidd_dists, incong_hidd_dists = ([] for i in range(4))
     embed_dists, hidd_dists, grid_dists,  grid_angles = ([] for i in range(4))
-        
     
-    res = cortical_results[-1][-1]
-    samples_res = res['samples_res']
-    pca_results = analyze_dim_red(res, 'pca', n_components=3)
-    # mds_results = analyze_dim_red(res, 'mds', n_components=2)
-    # tsne_results = analyze_dim_red(res, 'tsne', n_components=2)
-    mds_results = {}
-    tsne_results = {}
-    pca_results['grid_locations']  = locs
-    pca_results['samples_res']  = samples_res
-    mds_results['grid_locations']  = locs
-    mds_results['samples_res']  = samples_res
-    tsne_results['grid_locations'] = locs
-    tsne_results['samples_res']  = samples_res
+    corr_results, reg_results, ttest_results, ratio_results, = ({} for i in range(4))
+    pca_results, tsne_results, mds_results = ({} for i in range(3))
+
+    if ((analysis_type=='pca') | (analysis_type=='all')):
+        res = cortical_results[-1][-1]
+        samples_res = res['samples_res']
+        pca_results = analyze_dim_red(res, 'pca', n_components=3)
+        # mds_results = analyze_dim_red(res, 'mds', n_components=2)
+        # tsne_results = analyze_dim_red(res, 'tsne', n_components=2)
+        
+        pca_results['grid_locations']  = locs
+        pca_results['samples_res']  = samples_res
+        mds_results['grid_locations']  = locs
+        mds_results['samples_res']  = samples_res
+        tsne_results['grid_locations'] = locs
+        tsne_results['samples_res']  = samples_res
 
     for run in range(args.nruns_cortical):
         r_hidd, p_val_hidd, r_embed, p_val_embed = ([] for i in range(4))
@@ -592,13 +595,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
             # load the results
             cortical_res = cortical_results[run][cp]
             dist_results = calc_dist(cortical_res, test_data)
-            ratio_results = calc_ratio(dist_results)
-            ttest_results = analyze_ttest(dist_results)
-            corr_results = analyze_corr(dist_results)
-            reg_results = analyze_regression(dist_results)
-            dist_c_inc_results = hist_data(dist_results)
-
-
+            dist_c_inc_results = hist_data(dist_results) 
             # distance results
             embed_dist.append(dist_results['embed_dists'])
             hidd_dist.append(dist_results['hidd_dists'])
@@ -608,67 +605,82 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
             incong_embed_dist.append(dist_c_inc_results['incong_embed_dist'])
             cong_hidd_dist.append(dist_c_inc_results['cong_hidd_dist'])
             incong_hidd_dist.append(dist_c_inc_results['incong_hidd_dist'])
-                    
-            # t-test results
-            t_stat_embed.append(ttest_results['t_stat_embed'])
-            t_p_val_embed.append(ttest_results['t_p_val_embed'])
-            t_stat_hidd.append(ttest_results['t_stat_hidd'])
-            t_p_val_hidd.append(ttest_results['t_p_val_hidd'])
             
-            # corretion results
-            # embeddings
-            r_embed.append(corr_results['r_embed'])
-            p_val_embed.append(corr_results['p_val_embed'])
-            # hiddens
-            r_hidd.append(corr_results['r_hidd'])
-            p_val_hidd.append(corr_results['p_val_hidd'])
+            # ratio analysis 
+            if ((analysis_type=='ratio') | (analysis_type=='all')):
+                ratio_results = calc_ratio(dist_results)
+                # embeddings
+                ratio_embed.append(ratio_results['ratio_embed'])
+                # hiddens
+                ratio_hidd.append(ratio_results['ratio_hidd'])
+
+
+            # t-test analysis
+            if ((analysis_type=='ttest') | (analysis_type=='all')):
+                ttest_results = analyze_ttest(dist_results)                
+                t_stat_embed.append(ttest_results['t_stat_embed'])
+                t_p_val_embed.append(ttest_results['t_p_val_embed'])
+                t_stat_hidd.append(ttest_results['t_stat_hidd'])
+                t_p_val_hidd.append(ttest_results['t_p_val_hidd'])
+
+            # corretion analysis
+            if ((analysis_type=='corr') | (analysis_type=='all')):
+                corr_results = analyze_corr(dist_results)
+                # embeddings
+                r_embed.append(corr_results['r_embed'])
+                p_val_embed.append(corr_results['p_val_embed'])
+                # hiddens
+                r_hidd.append(corr_results['r_hidd'])
+                p_val_hidd.append(corr_results['p_val_hidd'])
+
+            # regression analysis
+            if ((analysis_type=='regs') | (analysis_type=='all')):
+                reg_results = analyze_regression(dist_results)
+                # categorical
+                cat_reg = reg_results['cat_reg']
+                p_val_cat_reg.append(cat_reg['p_val'])
+                t_val_cat_reg.append(cat_reg['t_val'])
+                param_cat_reg.append(cat_reg['param'])
+                y_cat_reg.append(cat_reg['y'])
+                y_hat_E_cat_reg.append(cat_reg['y_hat_E'])
+                bse_cat_reg.append(cat_reg['bse'])
+                # conitnuous
+                con_reg = reg_results['con_reg']
+                p_val_con_reg.append(con_reg['p_val'])
+                t_val_con_reg.append(con_reg['t_val'])
+                param_con_reg.append(con_reg['param'])
+                y_con_reg.append(con_reg['y'])
+                y_hat_E_con_reg.append(con_reg['y_hat_E'])
+                bse_con_reg.append(con_reg['bse'])
+
             
-            # regression results
-            # categorical
-            cat_reg = reg_results['cat_reg']
-            p_val_cat_reg.append(cat_reg['p_val'])
-            t_val_cat_reg.append(cat_reg['t_val'])
-            param_cat_reg.append(cat_reg['param'])
-            y_cat_reg.append(cat_reg['y'])
-            y_hat_E_cat_reg.append(cat_reg['y_hat_E'])
-            bse_cat_reg.append(cat_reg['bse'])
-            # conitnuous
-            con_reg = reg_results['con_reg']
-            p_val_con_reg.append(con_reg['p_val'])
-            t_val_con_reg.append(con_reg['t_val'])
-            param_con_reg.append(con_reg['param'])
-            y_con_reg.append(con_reg['y'])
-            y_hat_E_con_reg.append(con_reg['y_hat_E'])
-            bse_con_reg.append(con_reg['bse'])
 
-            # ratio results 
-            # embeddings
-            ratio_embed.append(ratio_results['ratio_embed'])
-            # hiddens
-            ratio_hidd.append(ratio_results['ratio_hidd'])
-
-        r_hidds.append(r_hidd)
-        p_val_hidds.append(p_val_hidd)
-        r_embeds.append(r_embed)
-        p_val_embeds.append(p_val_embed)
-        ratio_hidds.append(ratio_hidd)
-        ratio_embeds.append(ratio_embed)
-        t_stat_embeds.append(t_stat_embed)
-        t_p_val_embeds.append(t_p_val_embed)
-        t_stat_hidds.append(t_stat_hidd)
-        t_p_val_hidds.append(t_p_val_hidd)
-        p_val_cat_regs.append(p_val_cat_reg)
-        t_val_cat_regs.append(t_val_cat_reg)
-        param_cat_regs.append(param_cat_reg)
-        y_cat_regs.append(y_cat_reg)
-        y_hat_E_cat_regs.append(y_hat_E_cat_reg)
-        bse_cat_regs.append(bse_cat_reg)
-        p_val_con_regs.append(p_val_con_reg)
-        t_val_con_regs.append(t_val_con_reg)
-        param_con_regs.append(param_con_reg)
-        y_con_regs.append(y_con_reg)
-        y_hat_E_con_regs.append(y_hat_E_con_reg)
-        bse_con_regs.append(bse_con_reg)
+        if ((analysis_type=='corr') | (analysis_type=='all')):
+            r_hidds.append(r_hidd)
+            p_val_hidds.append(p_val_hidd)
+            r_embeds.append(r_embed)
+            p_val_embeds.append(p_val_embed)
+        if ((analysis_type=='ratio') | (analysis_type=='all')):
+            ratio_hidds.append(ratio_hidd)
+            ratio_embeds.append(ratio_embed)
+        if ((analysis_type=='ttest') | (analysis_type=='all')):
+            t_stat_embeds.append(t_stat_embed)
+            t_p_val_embeds.append(t_p_val_embed)
+            t_stat_hidds.append(t_stat_hidd)
+            t_p_val_hidds.append(t_p_val_hidd)
+        if ((analysis_type=='regs') | (analysis_type=='all')):
+            p_val_cat_regs.append(p_val_cat_reg)
+            t_val_cat_regs.append(t_val_cat_reg)
+            param_cat_regs.append(param_cat_reg)
+            y_cat_regs.append(y_cat_reg)
+            y_hat_E_cat_regs.append(y_hat_E_cat_reg)
+            bse_cat_regs.append(bse_cat_reg)
+            p_val_con_regs.append(p_val_con_reg)
+            t_val_con_regs.append(t_val_con_reg)
+            param_con_regs.append(param_con_reg)
+            y_con_regs.append(y_con_reg)
+            y_hat_E_con_regs.append(y_hat_E_con_reg)
+            bse_con_regs.append(bse_con_reg)
         cong_embed_dists.append(cong_embed_dist)
         incong_embed_dists.append(incong_embed_dist)
         cong_hidd_dists.append(cong_hidd_dist)
@@ -678,29 +690,56 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
         grid_dists.append(grid_dist)
         grid_angles.append(grid_angle)
     
-
-    r_hidds = np.array(r_hidds)
-    p_val_hidds = np.array(p_val_hidds)
-    r_embeds = np.array(r_embeds)
-    p_val_embeds = np.array(p_val_embeds)
-    ratio_hidds = np.array(ratio_hidds)
-    ratio_embeds = np.array(ratio_embeds)
-    t_stat_embeds = np.array(t_stat_embeds)
-    t_p_val_embeds = np.array(t_p_val_embeds)
-    t_stat_hidds = np.array(t_stat_hidds)
-    t_p_val_hidds = np.array(t_p_val_hidds)
-    p_val_cat_regs = np.array(p_val_cat_regs)
-    t_val_cat_regs = np.array(t_val_cat_regs)
-    param_cat_regs = np.array(param_cat_regs)
-    y_cat_regs = np.array(y_cat_regs)
-    y_hat_E_cat_regs = np.array(y_hat_E_cat_regs)
-    bse_cat_regs = np.array(bse_cat_regs)
-    p_val_con_regs = np.array(p_val_con_regs)
-    t_val_con_regs = np.array(t_val_con_regs)
-    param_con_regs = np.array(param_con_regs)
-    y_con_regs = np.array(y_con_regs)
-    y_hat_E_con_regs = np.array(y_hat_E_con_regs)
-    bse_con_regs = np.array(bse_con_regs)
+    if ((analysis_type=='corr') | (analysis_type=='all')):
+        r_hidds = np.array(r_hidds)
+        p_val_hidds = np.array(p_val_hidds)
+        r_embeds = np.array(r_embeds)
+        p_val_embeds = np.array(p_val_embeds)
+        corr_results = {'r_embeds': r_embeds, 
+                        'p_val_embeds': p_val_embeds,
+                        'r_hidds': r_hidds, 
+                        'p_val_hidds': p_val_hidds}
+    if ((analysis_type=='ratio') | (analysis_type=='all')):
+        ratio_hidds = np.array(ratio_hidds)
+        ratio_embeds = np.array(ratio_embeds)
+        ratio_results = {'ratio_embeds': ratio_embeds, 
+                         'ratio_hidds': ratio_hidds}
+    if ((analysis_type=='ttest') | (analysis_type=='all')):
+        t_stat_embeds = np.array(t_stat_embeds)
+        t_p_val_embeds = np.array(t_p_val_embeds)
+        t_stat_hidds = np.array(t_stat_hidds)
+        t_p_val_hidds = np.array(t_p_val_hidds)
+        ttest_results = {'t_stat_hidds': t_stat_hidds,
+                         't_p_val_hidds': t_p_val_hidds,
+                         't_stat_embeds': t_stat_embeds, 
+                         't_p_val_embeds': t_p_val_embeds}
+    if ((analysis_type=='regs') | (analysis_type=='all')):
+        p_val_cat_regs = np.array(p_val_cat_regs)
+        t_val_cat_regs = np.array(t_val_cat_regs)
+        param_cat_regs = np.array(param_cat_regs)
+        y_cat_regs = np.array(y_cat_regs)
+        y_hat_E_cat_regs = np.array(y_hat_E_cat_regs)
+        bse_cat_regs = np.array(bse_cat_regs)
+        p_val_con_regs = np.array(p_val_con_regs)
+        t_val_con_regs = np.array(t_val_con_regs)
+        param_con_regs = np.array(param_con_regs)
+        y_con_regs = np.array(y_con_regs)
+        y_hat_E_con_regs = np.array(y_hat_E_con_regs)
+        bse_con_regs = np.array(bse_con_regs)
+        cat_regs = {'p_vals': p_val_cat_regs,
+                    't_vals': t_val_cat_regs,
+                    'params': param_cat_regs,
+                    'ys': y_cat_regs,
+                    'y_hat_Es': y_hat_E_cat_regs,
+                    'bses': bse_cat_regs}
+        con_regs = {'p_vals': p_val_con_regs,
+                    't_vals': t_val_con_regs,
+                    'params': param_con_regs,
+                    'ys': y_con_regs,
+                    'y_hat_Es': y_hat_E_con_regs,
+                    'bses': bse_con_regs}
+        reg_results = {'cat_regs': cat_regs,
+                       'con_regs': con_regs}
     cong_embed_dists = np.array(cong_embed_dists)
     incong_embed_dists = np.array(incong_embed_dists)
     cong_hidd_dists = np.array(cong_hidd_dists)
@@ -710,25 +749,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
     grid_dists = np.array(grid_dists)
     grid_angles = np.array(grid_angles)
 
-    cat_regs = {'p_vals': p_val_cat_regs,
-                't_vals': t_val_cat_regs,
-                'params': param_cat_regs,
-                'ys': y_cat_regs,
-                'y_hat_Es': y_hat_E_cat_regs,
-                'bses': bse_cat_regs}
-    con_regs = {'p_vals': p_val_con_regs,
-                't_vals': t_val_con_regs,
-                'params': param_con_regs,
-                'ys': y_con_regs,
-                'y_hat_Es': y_hat_E_con_regs,
-                'bses': bse_con_regs}
-    corr_results = {'r_embeds': r_embeds, 'p_val_embeds': p_val_embeds,
-                    'r_hidds': r_hidds, 'p_val_hidds': p_val_hidds}
-    ttest_results = {'t_stat_hidds':t_stat_hidds, 't_p_val_hidds': t_p_val_hidds,
-                     't_stat_embeds':t_stat_embeds, 't_p_val_embeds': t_p_val_embeds}
-    ratio_results = {'ratio_embeds': ratio_embeds, 'ratio_hidds': ratio_hidds}
-    reg_results = {'cat_regs': cat_regs,
-                   'con_regs': con_regs}
+    
     dist_results = {'embed_dists': embed_dists, 'hidd_dists': hidd_dists,
                     'grid_dists': grid_dists, 'grid_angles': grid_angles,
                     'cong_embed_dists': cong_embed_dists, 'incong_embed_dists': incong_embed_dists,
