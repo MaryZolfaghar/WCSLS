@@ -276,6 +276,71 @@ def analyze_cortical(model, test_data, analyze_loader, args):
     
     return results
 
+def calc_dist_ctx(cortical_results, test_data):
+    # Useful dictionaries from test dataset
+    n_states = test_data.n_states 
+    loc2idx = test_data.loc2idx 
+    idx2loc = {idx:loc for loc, idx in loc2idx.items()}
+    idxs = [idx for idx in range(n_states)]
+
+    # Correlation
+    grid_dists = []
+    hidd_dists_ctx0 = []
+    hidd_dists_ctx1 = []
+    grid_1ds_ctx0 = []
+    grid_1ds_ctx1 = []
+    grid_angles = []
+    samples = []
+
+    avg_hidden_ctx0 =  cortical_results['avg_hidden_ctx0']
+    avg_hidden_ctx1 =  cortical_results['avg_hidden_ctx1']
+
+    for idx1, idx2 in combinations(idxs, 2):
+        (x1, y1), (x2, y2) = idx2loc[idx1], idx2loc[idx2]
+        samples.append((idx1, idx2))
+        grid_dist = np.sqrt((x1-x2)**2 + (y1-y2)**2)
+        grid_dists.append(grid_dist)
+        # Euclidean distance between hidden reps. in context0
+        hidd1, hidd2 = avg_hidden_ctx0[idx1], avg_hidden_ctx0[idx2]
+        hidd_dist = np.linalg.norm(hidd1 - hidd2)
+        hidd_dists_ctx0.append(hidd_dist)
+        # Euclidean distance between hidden reps. in context1
+        hidd1, hidd2 = avg_hidden_ctx1[idx1], avg_hidden_ctx1[idx2]
+        hidd_dist = np.linalg.norm(hidd1 - hidd2)
+        hidd_dists_ctx1.append(hidd_dist)
+        # 1D rank - Manhattan distance
+        grid_1ds_ctx0.append(np.abs(x1-x2))
+        grid_1ds_ctx1.append(np.abs(y1-y2))
+        # create on and off diagonal groups
+        grid_angle = np.arctan2((y2-y1),(x2-x1))
+        grid_angles.append(grid_angle)
+        
+    grid_dists = np.array(grid_dists) # [(n_states*(nstates-1))/2]: [120]
+    grid_angles = np.array(grid_angles) # [120]
+    samples = np.array(samples)
+    hidd_dists_ctx0 = np.array(hidd_dists_ctx0)
+    hidd_dists_ctx1 = np.array(hidd_dists_ctx1)
+    grid_1ds_ctx0 = np.array(grid_1ds_ctx0)
+    grid_1ds_ctx1 = np.array(grid_1ds_ctx1)
+
+    phi = np.sin(2*grid_angles)
+    binary_phi = np.sign(phi)
+    for i, p in enumerate(phi):
+        if np.abs(p)<1e-5:
+            binary_phi[i] = 0
+
+    angle_results = {'grid_angles': grid_angles,
+                     'phi': phi,
+                     'binary_phi': binary_phi}
+    dist_results = {'samples': samples,
+                    'hidd_dists_ctx0': hidd_dists_ctx0,
+                    'hidd_dists_ctx1': hidd_dists_ctx1,
+                    'grid_1ds_ctx0': grid_1ds_ctx0,
+                    'grid_1ds_ctx1': grid_1ds_ctx1,
+                    'grid_dists': grid_dists,
+                    'angle_results': angle_results}
+    return dist_results
+
 def calc_dist(cortical_results, test_data):
     # Useful dictionaries from test dataset
     n_states = test_data.n_states 
@@ -556,6 +621,54 @@ def analyze_regression(dist_results):
                    'con_reg': con_reg}
     return reg_results
 
+def analyze_regression_1D(dist_ctx_results):
+    hidd_dists_ctx0 = dist_ctx_results['hidd_dists_ctx0']
+    hidd_dists_ctx1 = dist_ctx_results['hidd_dists_ctx1']
+    grid_1ds_ctx0 = dist_ctx_results['grid_1ds_ctx0']
+    grid_1ds_ctx1 = dist_ctx_results['grid_1ds_ctx1']
+    grid_dists = dist_ctx_results['grid_dists']
+    
+    phi = dist_ctx_results['angle_results']['phi']
+    binary_phi = dist_ctx_results['angle_results']['binary_phi']
+    
+    hidd_dists_ctx = np.concatenate((hidd_dists_ctx0, hidd_dists_ctx1), axis=0)
+    grid_1ds_ctx = np.concatenate((grid_1ds_ctx0, grid_1ds_ctx1), axis=0)
+    grid_dists_ctx = np.concatenate((grid_dists, grid_dists), axis=0)
+    binary_phi_ctx = np.concatenate((binary_phi, binary_phi), axis=0)
+    phi_ctx = np.concatenate((phi, phi), axis=0)
+    # prepare data for the regression analysis
+    x_cat = np.concatenate((grid_dists_ctx.reshape((-1,1)), grid_1ds_ctx.reshape((-1,1)),
+                            binary_phi_ctx.reshape((-1,1))),axis=1) # [240, 3]
+    x_con = np.concatenate((grid_dists_ctx.reshape((-1,1)), grid_1ds_ctx.reshape((-1,1)),
+                            phi_ctx.reshape((-1,1))),axis=1)
+    
+    y = hidd_dists_ctx
+
+    # categorical regression analysis
+    x_cat = sm.add_constant(x_cat)
+    stats_model_cat = sm.OLS(y,x_cat).fit() 
+    y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
+    cat_reg = {'p_val': stats_model_cat.pvalues,
+               't_val': stats_model_cat.tvalues,
+               'param': stats_model_cat.params,
+               'y_hat_E': y_hat_E,
+               'y': y,
+               'bse': stats_model_cat.bse}
+    # continuous regression analysis
+    x_con = sm.add_constant(x_con)
+    stats_model_con = sm.OLS(y,x_con).fit()
+    y_hat_E = stats_model_con.params[0] + (stats_model_con.params[1]*grid_dists)
+    con_reg = {'p_val': stats_model_con.pvalues,
+               't_val': stats_model_con.tvalues,
+               'param': stats_model_con.params,
+               'y_hat_E': y_hat_E,
+               'y': y,
+               'bse': stats_model_con.bse}
+
+    reg_results = {'cat_reg': cat_reg, 
+                   'con_reg': con_reg}
+    return reg_results
+
 def analyze_regression_exc(dist_results, test_data):
     # Useful dictionaries from test dataset
     n_states = test_data.n_states 
@@ -566,9 +679,8 @@ def analyze_regression_exc(dist_results, test_data):
     states=[]
     p_vals, t_vals, params, y_hat_Es, ys, bses = ([] for i in range(6))
     
-    
     for state in range(n_states):
-        s_idxs = [i for i, sample in enumerate(samples) if state not in sample]
+        s_idxs = [i for i, sample in enumerate(samples) if state not in sample] # [105]
         # prepare data for the regression analysis
         x_cat = np.concatenate((grid_dists[s_idxs].reshape((-1,1)), binary_phi[s_idxs].reshape((-1,1))),axis=1)
         y = hidd_dists[s_idxs]
@@ -583,13 +695,27 @@ def analyze_regression_exc(dist_results, test_data):
         y_hat_Es.append(y_hat_E)
         bses.append(stats_model_cat.bse)
     # regression analysis - after removing (0,0) and (3,3)
-    s_idxs = [i for i, sample in enumerate(samples) if ((0 not in sample) & (15 not in sample))]
+    s_idxs = [i for i, sample in enumerate(samples) if ((0 not in sample) & (15 not in sample))] # [91]
     x_cat = np.concatenate((grid_dists[s_idxs].reshape((-1,1)), binary_phi[s_idxs].reshape((-1,1))),axis=1)
     y = hidd_dists[s_idxs]
     x_cat = sm.add_constant(x_cat)
     stats_model_cat = sm.OLS(y,x_cat).fit() 
     y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
     states.append(16)
+    p_vals.append(stats_model_cat.pvalues)
+    t_vals.append(stats_model_cat.tvalues)
+    params.append(stats_model_cat.params)
+    y_hat_Es.append(y_hat_E)
+    bses.append(stats_model_cat.bse)
+    # regression analysis - after removing (0,0) and (3,3), (3,0) and (0.3)
+    s_idxs = [i for i, sample in enumerate(samples) if ((0 not in sample) & (15 not in sample) &
+                                                        (3 not in sample) & (12 not in sample))] #[66]
+    x_cat = np.concatenate((grid_dists[s_idxs].reshape((-1,1)), binary_phi[s_idxs].reshape((-1,1))),axis=1)
+    y = hidd_dists[s_idxs]
+    x_cat = sm.add_constant(x_cat)
+    stats_model_cat = sm.OLS(y,x_cat).fit() 
+    y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
+    states.append(17)
     p_vals.append(stats_model_cat.pvalues)
     t_vals.append(stats_model_cat.tvalues)
     params.append(stats_model_cat.params)
@@ -633,6 +759,8 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
         y_con_regs, y_hat_E_con_regs = ([] for i in range(6))
     p_val_exc_regs, t_val_exc_regs, param_exc_regs, y_exc_regs, \
             y_hat_E_exc_regs, bse_exc_regs = ([] for i in range(6))
+    p_val_1D_regs, t_val_1D_regs, param_1D_regs, y_1D_regs, \
+            y_hat_E_1D_regs, bse_1D_regs  = ([] for i in range(6))
     cong_embed_dists, incong_embed_dists, cong_hidd_dists, \
         incong_hidd_dists = ([] for i in range(4))
     embed_dists, hidd_dists, grid_dists,  grid_angles \
@@ -666,6 +794,8 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
             y_con_reg, y_hat_E_con_reg  = ([] for i in range(6))
         p_val_exc_reg, t_val_exc_reg, param_exc_reg, y_exc_reg, \
             y_hat_E_exc_reg, bse_exc_reg  = ([] for i in range(6))
+        p_val_1D_reg, t_val_1D_reg, param_1D_reg, y_1D_reg, \
+            y_hat_E_1D_reg, bse_1D_reg  = ([] for i in range(6))
         cong_embed_dist, incong_embed_dist, cong_hidd_dist, \
              incong_hidd_dist = ([] for i in range(4))
         embed_dist, hidd_dist, grid_dist, grid_angle \
@@ -675,6 +805,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
             # load the results
             cortical_res = cortical_results[run][cp]
             dist_results = calc_dist(cortical_res, test_data)
+            dist_ctx_results = calc_dist_ctx(cortical_res, test_data)
             dist_c_inc_results = hist_data(dist_results) 
             # distance results
             embed_dist.append(dist_results['embed_dists'])
@@ -739,6 +870,16 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
                 y_exc_reg.append(exc_reg['ys'])
                 y_hat_E_exc_reg.append(exc_reg['y_hat_Es'])
                 bse_exc_reg.append(exc_reg['bses'])
+                # Including 1D rank difference in the model
+                oneD_reg = analyze_regression_1D(dist_ctx_results)
+                oneD_reg = oneD_reg['cat_reg']
+                p_val_1D_reg.append(oneD_reg['p_val'])
+                t_val_1D_reg.append(oneD_reg['t_val'])
+                param_1D_reg.append(oneD_reg['param'])
+                y_1D_reg.append(oneD_reg['y'])
+                y_hat_E_1D_reg.append(oneD_reg['y_hat_E'])
+                bse_1D_reg.append(oneD_reg['bse'])
+
 
         if ((analysis_type=='corr') | (analysis_type=='all')):
             r_hidds.append(r_hidd)
@@ -772,6 +913,12 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
             y_exc_regs.append(y_exc_reg)
             y_hat_E_exc_regs.append(y_hat_E_exc_reg)
             bse_exc_regs.append(bse_exc_reg)
+            p_val_1D_regs.append(p_val_1D_reg)
+            t_val_1D_regs.append(t_val_1D_reg)
+            param_1D_regs.append(param_1D_reg)
+            y_1D_regs.append(y_1D_reg)
+            y_hat_E_1D_regs.append(y_hat_E_1D_reg)
+            bse_1D_regs.append(bse_1D_reg)
 
         cong_embed_dists.append(cong_embed_dist)
         incong_embed_dists.append(incong_embed_dist)
@@ -849,6 +996,12 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
         y_exc_regs = np.array(y_exc_regs)
         y_hat_E_exc_regs = np.array(y_hat_E_exc_regs)
         bse_exc_regs = np.array(bse_exc_regs)
+        p_val_1D_regs = np.array(p_val_1D_regs)
+        t_val_1D_regs = np.array(t_val_1D_regs)
+        param_1D_regs = np.array(param_1D_regs)
+        y_1D_regs = np.array(y_1D_regs)
+        y_hat_E_1D_regs = np.array(y_hat_E_1D_regs)
+        bse_1D_regs = np.array(bse_1D_reg)
         cat_regs = {'p_vals': p_val_cat_regs,
                     't_vals': t_val_cat_regs,
                     'params': param_cat_regs,
@@ -867,9 +1020,16 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
                     'ys': y_exc_regs,
                     'y_hat_Es': y_hat_E_exc_regs,
                     'bses': bse_exc_regs}
+        oneD_regs = {'p_vals': p_val_1D_regs,
+                    't_vals': t_val_1D_regs,
+                    'params': param_1D_regs,
+                    'ys': y_1D_regs,
+                    'y_hat_Es': y_hat_E_1D_regs,
+                    'bses': bse_1D_regs}
         reg_results = {'cat_regs': cat_regs,
                        'con_regs': con_regs,
-                       'exc_regs': exc_regs}
+                       'exc_regs': exc_regs,
+                       'oneD_regs': oneD_regs}
         results = {'dist_results': dist_results,
                    'reg_results': reg_results}
         with open('../results/'+'reg_'+args.out_file, 'wb') as f:
