@@ -44,7 +44,7 @@ parser.add_argument('--bs_cortical', type=int, default=32,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
                     help='Learning rate for cortical system')
-parser.add_argument('--nruns_cortical', type=int, default=20, # 20
+parser.add_argument('--nruns_cortical', type=int, default=1, # 20
                     help='Number of runs for cortical system')
 parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
@@ -52,6 +52,8 @@ parser.add_argument('--before_ReLU', action='store_true',
                     help='Whether use hidden reps. of MLP before the ReLU')
 parser.add_argument('--analysis_type', type=str, default='all',
                     help='What analysis to do after the multiple runs')
+parser.add_argument('--order_ax', type=str, default='first',
+                    help='Use axis as first or last input in the recurrent cortical system')
 
 def main(args):
     # CUDA
@@ -96,6 +98,9 @@ def main(args):
         if args.cortical_model=='rnn':
             print('Cortical system is running with an LSTM')
             cortical_system = RecurrentCorticalSystem(use_images=args.use_images).to(device)
+            # Use axis as the last one in the sequence
+            cortical_system.order_ax = args.order_ax
+            
         elif args.cortical_model=='mlp':
             print('Cortical system is running with an MLP')
             cortical_system = CorticalSystem(use_images=args.use_images).to(device)

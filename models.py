@@ -218,6 +218,7 @@ class RecurrentCorticalSystem(nn.Module):
         self.hidden_dim = 128
         self.output_dim = 2
         self.analyze = False
+        self.order_ax = 'first'
 
         # Input embedding (images or one-hot)
         if self.use_images:
@@ -244,7 +245,11 @@ class RecurrentCorticalSystem(nn.Module):
         ax_embed = self.axis_embedding(ax).unsqueeze(0) # [1, batch, state_dim]
         
         # LSTM
-        x = torch.cat([ax_embed, f1_embed, f2_embed], dim=0)
+        if self.order_ax == 'last':
+            x = torch.cat([f1_embed, f2_embed, ax_embed], dim=0)
+        elif self.order_ax == 'first':
+            x = torch.cat([ax_embed, f1_embed, f2_embed], dim=0)
+            
         
         # MLP
         lstm_out, (h_n, c_n) = self.lstm(x)

@@ -641,7 +641,7 @@ def analyze_regression_1D(dist_ctx_results):
                             binary_phi_ctx.reshape((-1,1))),axis=1) # [240, 3]
     x_con = np.concatenate((grid_dists_ctx.reshape((-1,1)), grid_1ds_ctx.reshape((-1,1)),
                             phi_ctx.reshape((-1,1))),axis=1)
-    
+
     y = hidd_dists_ctx
 
     # categorical regression analysis
@@ -778,10 +778,10 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
         
         pca_results['grid_locations']  = locs
         pca_results['samples_res']  = samples_res
-        mds_results['grid_locations']  = locs
-        mds_results['samples_res']  = samples_res
-        tsne_results['grid_locations'] = locs
-        tsne_results['samples_res']  = samples_res
+        # mds_results['grid_locations']  = locs
+        # mds_results['samples_res']  = samples_res
+        # tsne_results['grid_locations'] = locs
+        # tsne_results['samples_res']  = samples_res
 
     for run in range(args.nruns_cortical):
         r_hidd, p_val_hidd, r_embed, p_val_embed = ([] for i in range(4))
@@ -918,8 +918,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
             param_1D_regs.append(param_1D_reg)
             y_1D_regs.append(y_1D_reg)
             y_hat_E_1D_regs.append(y_hat_E_1D_reg)
-            bse_1D_regs.append(bse_1D_reg)
-
+            bse_1D_regs.append(bse_1D_reg)    
         cong_embed_dists.append(cong_embed_dist)
         incong_embed_dists.append(incong_embed_dist)
         cong_hidd_dists.append(cong_hidd_dist)
@@ -977,6 +976,12 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
                    'dist_results': dist_results}
         with open('../results/'+'ttest_'+args.out_file, 'wb') as f:
             pickle.dump(results, f)
+    if ((analysis_type=='pca') | (analysis_type=='all')): 
+        results = {'pca_results': pca_results,
+                   'dist_results': dist_results}
+        with open('../results/'+'pca_'+args.out_file, 'wb') as f:
+            pickle.dump(results, f)
+
     if ((analysis_type=='regs') | (analysis_type=='all')):
         p_val_cat_regs = np.array(p_val_cat_regs)
         t_val_cat_regs = np.array(t_val_cat_regs)
