@@ -34,7 +34,7 @@ parser.add_argument('--lr_episodic', type=float, default=0.001,
 # Cortical system
 parser.add_argument('--use_images', action='store_false',
                     help='Use full face images and CNN for cortical system')
-parser.add_argument('--cortical_model', type=str, default='rnn',
+parser.add_argument('--cortical_model', type=str, default='mlp',
                     help='Use a recurrent neural network (LSTM) or MLP for cortical system')
 parser.add_argument('--image_dir', default='images/',
                     help='Path to directory containing face images')

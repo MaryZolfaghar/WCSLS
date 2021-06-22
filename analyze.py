@@ -157,6 +157,15 @@ def analyze_cortical(model, test_data, analyze_loader, args):
             # y_hat: [1, 2]
             # rnn_out: [seq_length, 1, hidden_dim]
             # mlp_out: dict len [2]: hidd_b/a: [1, hidden_dim]: [1, 128]
+            if args.order_ax == 'first':
+                f1_ind = 1
+                f2_ind = 2
+                ax_ind = 0
+            elif args.order_ax == 'last':
+                f1_ind = 0
+                f2_ind = 1
+                ax_ind = 2
+
             if args.cortical_model=='rnn':
                 out = out.squeeze().unsqueeze(0).unsqueeze(0)
             elif args.cortical_model=='mlp':
@@ -221,17 +230,17 @@ def analyze_cortical(model, test_data, analyze_loader, args):
     if args.cortical_model=='rnn':
         # Take average for each face based on its location
         for f in range(n_states):
-            temp1 = [hiddens[i,:,1,:] 
+            temp1 = [hiddens[i,:,f1_ind,:] 
                         for i, idx1 in enumerate(idxs1) if idx1==f]
-            temp2 = [hiddens[i,:,2,:] 
+            temp2 = [hiddens[i,:,f2_ind,:] 
                         for i, idx2 in enumerate(idxs2) if idx2==f]         
-            temp1_ctx0 = [hiddens_ctx0[i,:,1,:] 
+            temp1_ctx0 = [hiddens_ctx0[i,:,f1_ind,:] 
                             for i, idx1 in enumerate(idxs1_ctx0) if idx1==f]
-            temp2_ctx0 = [hiddens_ctx0[i,:,2,:] 
+            temp2_ctx0 = [hiddens_ctx0[i,:,f2_ind,:] 
                             for i, idx2 in enumerate(idxs2_ctx0) if idx2==f]
-            temp1_ctx1 = [hiddens_ctx1[i,:,1,:] 
+            temp1_ctx1 = [hiddens_ctx1[i,:,f1_ind,:] 
                             for i, idx1 in enumerate(idxs1_ctx1) if idx1==f]
-            temp2_ctx1 = [hiddens_ctx1[i,:,2,:] 
+            temp2_ctx1 = [hiddens_ctx1[i,:,f2_ind,:] 
                             for i, idx2 in enumerate(idxs2_ctx1) if idx2==f]
             if len(temp1 + temp2)>1:
                 avg_hidden[f] = np.concatenate(temp1 + temp2, axis=0).mean(axis=0)
