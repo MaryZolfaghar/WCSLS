@@ -398,6 +398,134 @@ class GridMetaDataset(Dataset):
             
         return train_episode, test_episode
 
+
+import torch
+import random
+import numpy as np
+from itertools import permutations 
+from torch.utils.data import Dataset, DataLoader 
+from torchvision.datasets import ImageFolder 
+from torchvision.transforms import Compose, Grayscale, ToTensor
+
+class GlobalGrid():
+    def __init__(self):
+        self.size = 4
+        locs = [(i,j) for i in range(self.size) for j in range(self.size)]
+        # Generate all the permutations of the pairs
+        all_perms = []
+        train = []
+        test = []
+        idxs = [idx for idx in range(len(locs))]
+        loc2idx = {loc:idx for loc, idx in zip(locs, idxs)}
+        idx2loc = {idx:loc for idx, loc in zip(idxs, locs)}
+        for idx1, idx2 in permutations(idxs, 2):
+            loc1, loc2 = idx2loc[idx1], idx2loc[idx2]
+            f1 = loc1
+            f2 = loc2
+            # ToDo - change axis to ctx as context 
+            # Competence on x-axis; Populatiry on y-axis
+            # axis = 0 is the task when M:C and V:P
+            # axis = 1 is the task when M:P and V:C
+            # removing ties
+            # ties: pairs with the same rank on the both axis
+            for ax in range(2):
+                if ax==0:
+                    # M:C and V:P - so dM comes from x-axis, dV from y-axis
+                    dM = loc1[0] - loc2[0]
+                    dV = loc1[1] - loc2[1]
+                elif ax==1:
+                    # M:P and V:C
+                    dM = loc1[1] - loc2[1]
+                    dV = loc1[0] - loc2[0]
+
+                if ((dM!=0) & (dV!=0)):
+                    y1 = int(dM > 0)
+                    y2 = int(dV > 0)
+                    all_perms.append((f1, f2, ax, y1, y2))
+                    if (abs(dM)>1) & (abs(dV)>1):
+                        test.append((f1, f2, ax, y1, y2))
+                    elif (abs(dM)==1) & (abs(dV)==1):
+                        train.append((f1, f2, ax, y1, y2))
+
+            
+                
+        # Save variables
+        self.locs = locs
+        self.all_perms = all_perms
+        self.train = train
+        self.test = test
+
+        self.n_train = len(self.train)
+        self.n_test = len(self.test)
+        self.n_all_perms = len(self.all_perms)
+        
+
+class GlobalGridDataset(Dataset):
+    """
+    Dataset used for cortical system. Each sample is a tuple (f1, f2, axis, y):
+        f1   : face 1, either int to be embedded or an image (1, 64, 64)
+        f2   : face 2, either int to be embedded or an image (1, 64, 64)
+        axis : axis variable, always an int to be embedded 
+        y1   : correct answer for response 1, always either 0 or 1
+        y2   : correct answer for response 2, always either 0 or 1
+    """
+    def __init__(self, testing, analyzing, use_images, image_dir = None):
+        self.testing = testing       # use test set
+        self.analyzing = analyzing   # use all the permutations - random split 
+        self.use_images = use_images # use images rather than one-hot vectors
+        self.image_dir = image_dir   # directory with images
+        self.grid = GlobalGrid()
+
+        # Create 1 fixed mapping from locs to idxs
+        locs = self.grid.locs 
+        idxs = [idx for idx in range(len(locs))]
+        self.loc2idx = {loc:idx for loc, idx in zip(locs, idxs)}
+        self.n_states = len(idxs)
+
+        # Prepare tensors for each idx
+        idx2tensor = {}
+        if self.use_images:
+            # Tensors are images
+            transform = Compose([Grayscale(num_output_channels=1), ToTensor()])
+            face_images = ImageFolder(self.image_dir, transform)
+            for idx in idxs:
+                idx2tensor[idx] = face_images[idx][0] # [1, 64, 64]
+        else:
+            # Tensors are one-hot vectors
+            for idx in idxs:
+                idx2tensor[idx] = torch.tensor(idx).type(torch.long) # [16]
+        self.idx2tensor = idx2tensor
+    
+    def __len__(self):
+        if self.testing:
+            return len(self.grid.test)
+        elif self.analyzing:
+            return len(self.grid.all_perms)
+        else:
+            return len(self.grid.train)
+    
+    def __getitem__(self, i):
+        if self.testing:
+            s = self.grid.test[i]
+        elif self.analyzing:
+            s = self.grid.all_perms[i]    
+        else:
+            s = self.grid.train[i]
+        loc1 = s[0]
+        loc2 = s[1]
+        idx1 = self.loc2idx[loc1]
+        idx2 = self.loc2idx[loc2]
+        f1 = self.idx2tensor[idx1].unsqueeze(0) # [1, 1, 64, 64]
+        f2 = self.idx2tensor[idx2].unsqueeze(0) # [1, 1, 64, 64]
+        axis = torch.tensor(s[2]).type(torch.long).unsqueeze(0) # [1]
+        y1 = torch.tensor(s[3]).unsqueeze(0).unsqueeze(0) # [1]
+        y1 = y1.type(torch.long)
+        y2 = torch.tensor(s[4]).unsqueeze(0).unsqueeze(0) # [1]
+        y2 = y2.type(torch.long)
+        
+        return f1, f2, axis, y1, y2, idx1, idx2
+
+
 # Collate functions
 def meta_collate(samples):
     train_batch = torch.cat([s[0] for s in samples], dim=0)
@@ -413,7 +541,17 @@ def grid_collate(samples):
     idx2_batch = [s[5] for s in samples]
     return f1_batch, f2_batch, ax_batch, y_batch, idx1_batch, idx2_batch
 
-def get_loaders(batch_size, meta, use_images, image_dir, n_episodes):
+def global_grid_collate(samples):
+    f1_batch = torch.cat([s[0] for s in samples], dim=0)
+    f2_batch = torch.cat([s[1] for s in samples], dim=0)
+    ax_batch = torch.cat([s[2] for s in samples], dim=0)
+    y1_batch = torch.cat([s[3] for s in samples], dim=0)
+    y2_batch = torch.cat([s[4] for s in samples], dim=0)
+    idx1_batch = [s[5] for s in samples]
+    idx2_batch = [s[6] for s in samples]
+    return f1_batch, f2_batch, ax_batch, y1_batch, y2_batch, idx1_batch, idx2_batch
+
+def get_loaders(batch_size, meta, use_images, image_dir, n_episodes, n_responses):
     if meta:
         # Train
         train_data = GridMetaDataset(testing=False, n_episodes=n_episodes)
@@ -423,6 +561,22 @@ def get_loaders(batch_size, meta, use_images, image_dir, n_episodes):
         test_data = GridMetaDataset(testing=True, n_episodes=n_episodes)
         test_loader = DataLoader(test_data, batch_size=batch_size, 
                                  shuffle=True, collate_fn=meta_collate)
+    elif n_responses=='two':
+        # Train
+        train_data = GlobalGridDataset(testing=False, analyzing=False, use_images=use_images, 
+                                       image_dir=image_dir)
+        train_loader = DataLoader(train_data, batch_size=batch_size,
+                                shuffle=True, collate_fn=global_grid_collate)
+        # Test
+        test_data = GlobalGridDataset(testing=True, analyzing=False, use_images=use_images, 
+                                      image_dir=image_dir)
+        test_loader = DataLoader(test_data, batch_size=batch_size,
+                                 shuffle=True, collate_fn=global_grid_collate)
+        # Analyze
+        analyze_data = GlobalGridDataset(testing=False, analyzing=True, use_images=use_images,
+                                         image_dir=image_dir)
+        analyze_loader = DataLoader(analyze_data, batch_size=1, 
+                                 shuffle=False, collate_fn=global_grid_collate)
     else:
         # Train
         train_data = GridDataset(testing=False, analyzing=False, use_images=use_images, 

@@ -131,8 +131,10 @@ def analyze_cortical(model, test_data, analyze_loader, args):
             embeddings.append(embedding)
         embeddings = np.concatenate(embeddings, axis=0) # [n_states, state_dim]
         for batch in analyze_loader:
-            # if model.analyze:
-            f1, f2, ax, y, idx1, idx2 = batch
+            if args.N_responses == 'one':
+                f1, f2, ax, y, idx1, idx2 = batch
+            elif args.N_responses == 'two':
+                f1, f2, ax, y1, y2, idx1, idx2 = batch
             idx1 = idx1[0]
             idx2 = idx2[0]
             samples.append(batch)
@@ -160,19 +162,15 @@ def analyze_cortical(model, test_data, analyze_loader, args):
             if args.order_ax == 'first':
                 f1_ind = 1
                 f2_ind = 2
-                ax_ind = 0
+                # ax_ind = 0
             elif args.order_ax == 'last':
                 f1_ind = 0
                 f2_ind = 1
-                ax_ind = 2
+                # ax_ind = 2
 
             if args.cortical_model=='rnn':
                 out = out.squeeze().unsqueeze(0).unsqueeze(0)
             elif args.cortical_model=='mlp':
-                if args.before_ReLU:
-                    out = out['hidd_b'] # hidden reps. befor the ReLU
-                else:
-                    out = out['hidd_a'] # hidden reps. after the ReLU
                 out = out.unsqueeze(0)
             out = out.cpu().numpy()
             ax = ax.cpu().numpy()

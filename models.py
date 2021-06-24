@@ -160,7 +160,7 @@ class CorticalSystem(nn.Module):
     def __init__(self, use_images):
         super(CorticalSystem, self).__init__()
         self.use_images = use_images
-
+        
         # Hyperparameters
         self.n_states = 16
         self.state_dim = 32
@@ -168,6 +168,7 @@ class CorticalSystem(nn.Module):
         self.hidden_dim = 128
         self.output_dim = 2
         self.analyze = False
+        self.N_responses = 'one'
 
         # Input embedding (images or one-hot)
         if self.use_images:
@@ -180,12 +181,11 @@ class CorticalSystem(nn.Module):
         nn.init.xavier_normal_(self.axis_embedding.weight)
 
         # MLP
-        self.linear1 = nn.Linear(self.mlp_in_dim, self.hidden_dim)
-        self.linear2 = nn.Linear(self.hidden_dim, self.output_dim)
+        self.hidden = nn.Linear(self.mlp_in_dim, self.hidden_dim)
+        self.resp1 = nn.Linear(self.hidden_dim, self.output_dim)
+        self.resp2 = nn.Linear(self.hidden_dim, self.output_dim)
         self.relu = nn.ReLU()
-        # self.sigmoid = nn.Sigmoid()
-        # self.tanh = nn.Tanh()
-
+        
     def forward(self, f1, f2, ax):
 
         # Embed inputs
@@ -196,14 +196,16 @@ class CorticalSystem(nn.Module):
         # MLP
         x = torch.cat([f1_embed, f2_embed, ax_embed], dim=1) 
         # x: [batch, 3*state_dim]
-        hidd_b = self.linear1(x) # [batch, hidden_dim]
-        hidd_a = self.relu(hidd_b)    # [batch, hidden_dim]
-        hidds = {'hidd_b': hidd_b, 'hidd_a': hidd_a}
-        # x = self.sigmoid(x) # [batch, hidden_dim]
-        # x = self.tanh(x)
-        x = self.linear2(hidd_a) # [batch, output_dim]
-
-        return x, hidds
+        hidd = self.hidden(x) # [batch, hidden_dim]
+        hidd = self.relu(hidd)    # [batch, hidden_dim]
+        x1 = self.resp1(hidd) # [batch, output_dim]
+        if self.N_responses == 'one':
+            x = x1
+        elif self.N_responses == 'two':
+            x2 = self.resp2(hidd) # [batch, output_dim]
+            x = [x1, x2]
+        
+        return x, hidd
 
 
 class RecurrentCorticalSystem(nn.Module):
@@ -219,7 +221,8 @@ class RecurrentCorticalSystem(nn.Module):
         self.output_dim = 2
         self.analyze = False
         self.order_ax = 'first'
-
+        self.N_responses = 'one'
+        
         # Input embedding (images or one-hot)
         if self.use_images:
             self.face_embedding = CNN(self.state_dim)
@@ -234,7 +237,8 @@ class RecurrentCorticalSystem(nn.Module):
         self.lstm = nn.LSTM(self.state_dim, self.hidden_dim)
 
         # MLP
-        self.linear = nn.Linear(self.hidden_dim, self.output_dim)
+        self.resp1 = nn.Linear(self.hidden_dim, self.output_dim)
+        self.resp2 = nn.Linear(self.hidden_dim, self.output_dim)
         self.relu = nn.ReLU()
 
     def forward(self, f1, f2, ax):
@@ -259,11 +263,21 @@ class RecurrentCorticalSystem(nn.Module):
         if self.analyze:
             lstm_out = lstm_out.permute(1,0,2)
             # lstm_out: [batch, seq_length, hidden_dim]
-            x = self.linear(lstm_out)
-            # x:   [batch, seq_length, output_dim] 
+            x1 = self.resp1(lstm_out)
+            # x1: [batch, seq_length, output_dim] 
+            if self.N_responses == 'one':
+                x = x1
+            elif self.N_responses == 'two':
+                x2 = self.resp2(lstm_out)
+                x = [x1, x2]
         else:
-            x = self.linear(h_n.squeeze(0))
-            # x:   [batch, output_dim] 
+            x1 = self.resp1(h_n.squeeze(0))
+            # x1: [batch, output_dim] 
+            if self.N_responses == 'one':
+                x = x1
+            elif self.N_responses == 'two':
+                x2 = self.resp2(h_n.squeeze(0))
+                x = [x1, x2]
         
         return x, lstm_out
 

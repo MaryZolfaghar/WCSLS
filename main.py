@@ -34,7 +34,7 @@ parser.add_argument('--lr_episodic', type=float, default=0.001,
 # Cortical system
 parser.add_argument('--use_images', action='store_false',
                     help='Use full face images and CNN for cortical system')
-parser.add_argument('--cortical_model', type=str, default='mlp',
+parser.add_argument('--cortical_model', type=str, default='rnn',
                     help='Use a recurrent neural network (LSTM) or MLP for cortical system')
 parser.add_argument('--image_dir', default='images/',
                     help='Path to directory containing face images')
@@ -44,16 +44,16 @@ parser.add_argument('--bs_cortical', type=int, default=32,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
                     help='Learning rate for cortical system')
-parser.add_argument('--nruns_cortical', type=int, default=1, # 20
+parser.add_argument('--nruns_cortical', type=int, default=20, # 20
                     help='Number of runs for cortical system')
 parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
-parser.add_argument('--before_ReLU', action='store_true',
-                    help='Whether use hidden reps. of MLP before the ReLU')
 parser.add_argument('--analysis_type', type=str, default='all',
                     help='What analysis to do after the multiple runs')
 parser.add_argument('--order_ax', type=str, default='first',
                     help='Use axis as first or last input in the recurrent cortical system')
+parser.add_argument('--N_responses', type=str, default='two',
+                    help='How many responses to perform - multitasking')
 
 def main(args):
     # CUDA
@@ -77,7 +77,7 @@ def main(args):
         episodic_system = EpisodicSystem().to(device)
         data = get_loaders(batch_size=args.bs_episodic, meta=meta, 
                         use_images=False, image_dir=args.image_dir, 
-                        n_episodes=args.N_episodic)
+                        n_episodes=args.N_episodic, n_responses=None)
         train_data, train_loader, test_data, test_loader = data
         episodic_train_losses = train(meta, episodic_system, train_loader, args)
         episodic_train_acc = test(meta, episodic_system, train_loader, args)
@@ -104,9 +104,11 @@ def main(args):
         elif args.cortical_model=='mlp':
             print('Cortical system is running with an MLP')
             cortical_system = CorticalSystem(use_images=args.use_images).to(device)
+        cortical_system.N_responses = args.N_responses
+
         data = get_loaders(batch_size=args.bs_cortical, meta=False,
                         use_images=args.use_images, image_dir=args.image_dir,
-                        n_episodes=None)
+                        n_episodes=None, n_responses=args.N_responses)
         train_data, train_loader, test_data, test_loader, analyze_data, analyze_loader = data
         # model
         model = cortical_system
@@ -122,6 +124,12 @@ def main(args):
         # training loop
         train_losses = [] # for recording all train losses
         ave_loss = [] # running average loss for printing
+        if args.N_responses=='two':
+            train_losses1 = []
+            train_losses2 = []
+            ave_loss1 = []
+            ave_loss2 = []
+
         N = args.N_episodic if meta else args.N_cortical 
         i = 0
         done = False
@@ -138,15 +146,30 @@ def main(args):
                     y_hat = y_hat.view(-1, y_hat.shape[2]) # [batch*n_test, 2]
                     y = y.view(-1) # [batch*n_test]
                 else:
-                    f1, f2, ax, y, idx1, idx2 = batch # face1, face2, axis, y, index1, index2
+                    if args.N_responses == 'one':
+                        f1, f2, ax, y, idx1, idx2 = batch # face1, face2, axis, y, index1, index2
+                        y = y.to(args.device).squeeze(1)
+                    elif args.N_responses == 'two':
+                        f1, f2, ax, y1, y2, idx1, idx2 = batch # face1, face2, axis, y1, y2, index1, index2
+                        y1 = y1.to(args.device).squeeze(1) # [batch]
+                        y2 = y2.to(args.device).squeeze(1) # [batch]
                     f1 = f1.to(args.device)
                     f2 = f2.to(args.device)
                     ax = ax.to(args.device)
-                    y = y.to(args.device).squeeze(1)
                     y_hat, out = model(f1, f2, ax)
-                    
-                # Loss
-                loss = loss_fn(y_hat, y)
+                    if args.N_responses == 'one':
+                        loss = loss_fn(y_hat, y)
+                    if args.N_responses == 'two':
+                        y_hat1 = y_hat[0] # [batch, 2]
+                        y_hat2 = y_hat[1] # [batch, 2]
+                        loss1 = loss_fn(y_hat1, y1)
+                        loss2 = loss_fn(y_hat2, y2)
+                        loss = loss1 + loss2
+                        train_losses1.append(loss1.data.item())
+                        train_losses2.append(loss2.data.item())
+                        ave_loss1.append(loss1.data.item())
+                        ave_loss2.append(loss2.data.item())
+                
                 loss.backward()
                 optimizer.step()
                 # Record loss
@@ -154,8 +177,16 @@ def main(args):
                 ave_loss.append(loss.data.item())
 
                 if i % args.print_every == 0:
-                    print("Run: {}, Step: {}, Loss: {}".format(run, i, np.mean(ave_loss)))
+                    if args.N_responses == 'two':
+                        print("Run: {}, Step: {}, Loss: {}, Loss1: {}, Loss2: {}".format(run, i, np.mean(ave_loss),
+                                                                                        np.mean(ave_loss1), 
+                                                                                        np.mean(ave_loss2)))
+                    else:
+                        print("Run: {}, Step: {}, Loss: {}".format(run, i, np.mean(ave_loss)))
                     ave_loss = []
+                    ave_loss1 = []
+                    ave_loss2 = []
+
                 if i % args.checkpoints == 0:
                     cortical_train_acc, _ = test(meta, cortical_system, train_loader, args)
                     cortical_test_acc, _ = test(meta, cortical_system, test_loader, args)
