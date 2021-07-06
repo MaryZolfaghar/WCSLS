@@ -34,8 +34,10 @@ parser.add_argument('--lr_episodic', type=float, default=0.001,
 # Cortical system
 parser.add_argument('--use_images', action='store_false',
                     help='Use full face images and CNN for cortical system')
-parser.add_argument('--cortical_model', type=str, default='rnn',
+parser.add_argument('--cortical_model', type=str, default='mlp',
                     help='Use a recurrent neural network (LSTM) or MLP for cortical system')
+parser.add_argument('--cortical_task', type=str, default='wine_task',
+                    help='The task for the cortical model - either face_task or wine_task')
 parser.add_argument('--image_dir', default='images/',
                     help='Path to directory containing face images')
 parser.add_argument('--N_cortical', type=int, default=1000,
@@ -44,16 +46,18 @@ parser.add_argument('--bs_cortical', type=int, default=32,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
                     help='Learning rate for cortical system')
-parser.add_argument('--nruns_cortical', type=int, default=20, # 20
+parser.add_argument('--nruns_cortical', type=int, default=1, # 20
                     help='Number of runs for cortical system')
 parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
 parser.add_argument('--analysis_type', type=str, default='all',
                     help='What analysis to do after the multiple runs')
-parser.add_argument('--order_ax', type=str, default='first',
-                    help='Use axis as first or last input in the recurrent cortical system')
-parser.add_argument('--N_responses', type=str, default='two',
+parser.add_argument('--order_ctx', type=str, default='first',
+                    help='Use context/axis as first or last input in the recurrent cortical system')
+parser.add_argument('--N_responses', type=str, default='one',
                     help='How many responses to perform - multitasking')
+parser.add_argument('--N_contexts', type=int, default=8,
+                    help='Number of contexts')
 
 def main(args):
     # CUDA
@@ -77,7 +81,8 @@ def main(args):
         episodic_system = EpisodicSystem().to(device)
         data = get_loaders(batch_size=args.bs_episodic, meta=meta, 
                         use_images=False, image_dir=args.image_dir, 
-                        n_episodes=args.N_episodic, n_responses=None)
+                        n_episodes=args.N_episodic, 
+                        N_responses=None, N_contexts=None, cortical_task=None)
         train_data, train_loader, test_data, test_loader = data
         episodic_train_losses = train(meta, episodic_system, train_loader, args)
         episodic_train_acc = test(meta, episodic_system, train_loader, args)
@@ -98,17 +103,22 @@ def main(args):
         if args.cortical_model=='rnn':
             print('Cortical system is running with an LSTM')
             cortical_system = RecurrentCorticalSystem(use_images=args.use_images).to(device)
-            # Use axis as the last one in the sequence
-            cortical_system.order_ax = args.order_ax
+            # Use context/axis as the last one in the sequence
+            cortical_system.order_ctx = args.order_ctx
             
         elif args.cortical_model=='mlp':
             print('Cortical system is running with an MLP')
-            cortical_system = CorticalSystem(use_images=args.use_images).to(device)
-        cortical_system.N_responses = args.N_responses
+            cortical_system = CorticalSystem(use_images=args.use_images, 
+                                             N_responses=args.N_responses,
+                                             N_contexts=args.N_contexts)
+        
+        cortical_system.to(device)
 
         data = get_loaders(batch_size=args.bs_cortical, meta=False,
-                        use_images=args.use_images, image_dir=args.image_dir,
-                        n_episodes=None, n_responses=args.N_responses)
+                          use_images=args.use_images, image_dir=args.image_dir,
+                          n_episodes=None, N_responses=args.N_responses, 
+                          N_contexts=args.N_contexts, 
+                          cortical_task=args.cortical_task)
         train_data, train_loader, test_data, test_loader, analyze_data, analyze_loader = data
         # model
         model = cortical_system
@@ -134,6 +144,8 @@ def main(args):
         i = 0
         done = False
         while not done:
+            # Todo: change this back to train_loader
+            # for batch in analyze_loader:
             for batch in train_loader:
                 optimizer.zero_grad()
                 if meta:
@@ -146,18 +158,20 @@ def main(args):
                     y_hat = y_hat.view(-1, y_hat.shape[2]) # [batch*n_test, 2]
                     y = y.view(-1) # [batch*n_test]
                 else:
-                    if args.N_responses == 'one':
-                        f1, f2, ax, y, idx1, idx2 = batch # face1, face2, axis, y, index1, index2
+                    if args.cortical_task == 'face_task':
+                        f1, f2, ctx, y, idx1, idx2 = batch # face1, face2, context, y, index1, index2
                         y = y.to(args.device).squeeze(1)
-                    elif args.N_responses == 'two':
-                        f1, f2, ax, y1, y2, idx1, idx2 = batch # face1, face2, axis, y1, y2, index1, index2
+                    elif args.cortical_task == 'wine_task':
+                        f1, f2, ctx, y1, y2, idx1, idx2 = batch # face1, face2, context, y1, y2, index1, index2
                         y1 = y1.to(args.device).squeeze(1) # [batch]
                         y2 = y2.to(args.device).squeeze(1) # [batch]
                     f1 = f1.to(args.device)
                     f2 = f2.to(args.device)
-                    ax = ax.to(args.device)
-                    y_hat, out = model(f1, f2, ax)
-                    if args.N_responses == 'one':
+                    ctx = ctx.to(args.device)
+                    y_hat, out = model(f1, f2, ctx)
+                    if (args.N_responses == 'one'):
+                        if args.cortical_task == 'wine_task':
+                            y = y1
                         loss = loss_fn(y_hat, y)
                     if args.N_responses == 'two':
                         y_hat1 = y_hat[0] # [batch, 2]

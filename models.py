@@ -51,13 +51,13 @@ class EpisodicSystem(nn.Module):
 
         # Hyperparameters
         self.n_states = 16    # number of faces in 4x4 grid
-        self.axis_dim = 2     # dimension of axis (2d one-hot vectors)
+        self.ctx_dim = 2     # dimension of context/axis (2d one-hot vectors)
         self.y_dim = 1        # dimension of y (binary)
         self.model_dim = 32   # dimension of Q, K, V
         self.mlp_dim = 64     # dimension of mlp hidden layer
         self.n_layers = 1     # number of layers
         self.dropout_p = 0.0  # dropout probability
-        self.input_dim = 2*self.n_states + self.axis_dim # y not given in input
+        self.input_dim = 2*self.n_states + self.ctx_dim # y not given in input
         self.memory_dim = self.input_dim + self.y_dim    # y given in memories
         self.output_dim = 2   # number of choices (binary)
         
@@ -157,18 +157,22 @@ class CNN(nn.Module):
 
 
 class CorticalSystem(nn.Module):
-    def __init__(self, use_images):
+    def __init__(self, use_images, N_responses, N_contexts):
         super(CorticalSystem, self).__init__()
         self.use_images = use_images
-        
+        self.N_responses = N_responses
+
         # Hyperparameters
         self.n_states = 16
         self.state_dim = 32
-        self.mlp_in_dim = 3*self.state_dim # (f1 + f2 + axis)
+        if self.N_responses=='one':
+            self.mlp_in_dim = 3*self.state_dim # (f1 + f2 + context/axis)
+        elif self.N_responses=='two':
+            self.mlp_in_dim = 2*self.state_dim # (f1 + f2)
         self.hidden_dim = 128
         self.output_dim = 2
         self.analyze = False
-        self.N_responses = 'one'
+        
 
         # Input embedding (images or one-hot)
         if self.use_images:
@@ -177,8 +181,8 @@ class CorticalSystem(nn.Module):
             self.face_embedding = nn.Embedding(self.n_states, self.state_dim)
             nn.init.xavier_normal_(self.face_embedding.weight)
             
-        self.axis_embedding = nn.Embedding(2, self.state_dim)
-        nn.init.xavier_normal_(self.axis_embedding.weight)
+        self.ctx_embedding = nn.Embedding(N_contexts, self.state_dim)
+        nn.init.xavier_normal_(self.ctx_embedding.weight)
 
         # MLP
         self.hidden = nn.Linear(self.mlp_in_dim, self.hidden_dim)
@@ -186,16 +190,21 @@ class CorticalSystem(nn.Module):
         self.resp2 = nn.Linear(self.hidden_dim, self.output_dim)
         self.relu = nn.ReLU()
         
-    def forward(self, f1, f2, ax):
+    def forward(self, f1, f2, ctx):
 
         # Embed inputs
         f1_embed = self.face_embedding(f1) # [batch, state_dim]
         f2_embed = self.face_embedding(f2) # [batch, state_dim]
-        ax_embed = self.axis_embedding(ax) # [batch, state_dim]
+        if self.N_responses == 'one':
+            ctx_embed = self.ctx_embedding(ctx) # [batch, state_dim]
+            # MLP
+            x = torch.cat([f1_embed, f2_embed, ctx_embed], dim=1) 
+            # x: [batch, 3*state_dim]: [32, 96]
+        elif self.N_responses == 'two':
+            # MLP
+            x = torch.cat([f1_embed, f2_embed], dim=1) 
+            # x: [batch, 2*state_dim]: [32, 64]
         
-        # MLP
-        x = torch.cat([f1_embed, f2_embed, ax_embed], dim=1) 
-        # x: [batch, 3*state_dim]
         hidd = self.hidden(x) # [batch, hidden_dim]
         hidd = self.relu(hidd)    # [batch, hidden_dim]
         x1 = self.resp1(hidd) # [batch, output_dim]
@@ -216,11 +225,11 @@ class RecurrentCorticalSystem(nn.Module):
         # Hyperparameters
         self.n_states = 16
         self.state_dim = 32
-        self.mlp_in_dim = 3*self.state_dim # (f1 + f2 + axis) # this should be now hidden_dim of lstm
+        self.mlp_in_dim = 3*self.state_dim # (f1 + f2 + context/axis) # this should be now hidden_dim of lstm
         self.hidden_dim = 128
         self.output_dim = 2
         self.analyze = False
-        self.order_ax = 'first'
+        self.order_ctx = 'first'
         self.N_responses = 'one'
         
         # Input embedding (images or one-hot)
@@ -230,8 +239,8 @@ class RecurrentCorticalSystem(nn.Module):
             self.face_embedding = nn.Embedding(self.n_states, self.state_dim)
             nn.init.xavier_normal_(self.face_embedding.weight)
             
-        self.axis_embedding = nn.Embedding(2, self.state_dim)
-        nn.init.xavier_normal_(self.axis_embedding.weight)
+        self.ctx_embedding = nn.Embedding(2, self.state_dim)
+        nn.init.xavier_normal_(self.ctx_embedding.weight)
 
         # LSTM
         self.lstm = nn.LSTM(self.state_dim, self.hidden_dim)
@@ -241,18 +250,18 @@ class RecurrentCorticalSystem(nn.Module):
         self.resp2 = nn.Linear(self.hidden_dim, self.output_dim)
         self.relu = nn.ReLU()
 
-    def forward(self, f1, f2, ax):
+    def forward(self, f1, f2, ctx):
 
         # Embed inputs
         f1_embed = self.face_embedding(f1).unsqueeze(0) # [1, batch, state_dim]
         f2_embed = self.face_embedding(f2).unsqueeze(0) # [1, batch, state_dim]
-        ax_embed = self.axis_embedding(ax).unsqueeze(0) # [1, batch, state_dim]
+        ctx_embed = self.ctx_embedding(ctx).unsqueeze(0) # [1, batch, state_dim]
         
         # LSTM
-        if self.order_ax == 'last':
-            x = torch.cat([f1_embed, f2_embed, ax_embed], dim=0)
-        elif self.order_ax == 'first':
-            x = torch.cat([ax_embed, f1_embed, f2_embed], dim=0)
+        if self.order_ctx == 'last':
+            x = torch.cat([f1_embed, f2_embed, ctx_embed], dim=0)
+        elif self.order_ctx == 'first':
+            x = torch.cat([ctx_embed, f1_embed, f2_embed], dim=0)
             
         
         # MLP

@@ -16,54 +16,47 @@ def test(meta, model, loader, args):
                 y = y.squeeze() # y: [batch, n_test]
                 y_hat, attention = model(x, m) # yhat: [batch, n_test, 2]
                 preds = torch.argmax(y_hat, dim=2).squeeze(0) # [n_test]
-            elif model.analyze:
-                if args.N_responses == 'one':
-                    # Always batch_size is 1 
-                    f1, f2, ax, y, idx1, idx2 = batch # face1, face2, axis, y, index1, index2
-                    f1 = f1.to(args.device)
-                    f2 = f2.to(args.device)
-                    ax = ax.to(args.device)
-                    y = y.cpu().numpy()
-                    y = [y, y, y]
-                    y = torch.tensor(y).to(args.device).squeeze().unsqueeze(0)
-                    y_hat, out = model(f1, f2, ax) # [batch=1, seq_length, 2]
-                    preds = torch.argmax(y_hat, dim=-1) # [batch=1, seq_length]
-                elif args.N_responses == 'two':
-                    f1, f2, ax, y1, y2, idx1, idx2 = batch # face1, face2, axis, y, index1, index2
-                    f1 = f1.to(args.device)
-                    f2 = f2.to(args.device)
-                    ax = ax.to(args.device)
-                    y1 = y1.cpu().numpy()
-                    y1 = [y1, y1, y1]
-                    y1 = torch.tensor(y1).to(args.device).squeeze().unsqueeze(0)
-                    y2 = y2.cpu().numpy()
-                    y2 = [y2, y2, y2]
-                    y2 = torch.tensor(y2).to(args.device).squeeze().unsqueeze(0)
-                    y_hat, out = model(f1, f2, ax) # [batch=1, seq_length, 2]
-                    y_hat1 = y_hat[0]
-                    y_hat2 = y_hat[1]
-                    preds1 = torch.argmax(y_hat1, dim=-1) # [batch=1, seq_length]
-                    preds2 = torch.argmax(y_hat2, dim=-1) # [batch=1, seq_length]
-                    # preds = [preds1, preds2]
             else:
-                if args.N_responses == 'one':
-                    f1, f2, ax, y, idx1, idx2 = batch # face1, face2, axis, y, index1, index2
-                    f1 = f1.to(args.device)
-                    f2 = f2.to(args.device)
-                    ax = ax.to(args.device)
-                    y = y.to(args.device).squeeze()
-                    y_hat, out = model(f1, f2, ax) # [batch, 2]
-                    preds = torch.argmax(y_hat, dim=1).squeeze(0) # [batch]
-                elif args.N_responses == 'two':
-                    f1, f2, ax, y1, y2, idx1, idx2 = batch
-                    f1 = f1.to(args.device)
-                    f2 = f2.to(args.device)
-                    ax = ax.to(args.device)
-                    y1 = y1.to(args.device).squeeze()
-                    y2 = y2.to(args.device).squeeze()
-                    y_hat, out = model(f1, f2, ax) # [batch, 2]
-                    preds1 = torch.argmax(y_hat[0], dim=1).squeeze(0) # [batch]
-                    preds2 = torch.argmax(y_hat[1], dim=1).squeeze(0) # [batch]
+                if args.cortical_task == 'face_task':
+                        f1, f2, ctx, y, idx1, idx2 = batch # face1, face2, context, y, index1, index2
+                elif args.cortical_task == 'wine_task':
+                        f1, f2, ctx, y1, y2, idx1, idx2 = batch # face1, face2, context, y1, y2, index1, index2
+                f1 = f1.to(args.device)
+                f2 = f2.to(args.device)
+                ctx = ctx.to(args.device)
+                y_hat, out = model(f1, f2, ctx) # [batch=1, seq_length, 2]
+                if (args.N_responses == 'one'):
+                        if args.cortical_task == 'wine_task':
+                            y = y1
+                if model.analyze:
+                    # Always batch_size is 1  
+                    if (args.N_responses == 'one'):       
+                        y = y.cpu().numpy()
+                        y = [y, y, y]
+                        y = torch.tensor(y).to(args.device).squeeze().unsqueeze(0)
+                        preds = torch.argmax(y_hat, dim=-1) # [batch=1, seq_length]
+                    elif args.N_responses == 'two':
+                        y1 = y1.cpu().numpy()
+                        y1 = [y1, y1, y1]
+                        y1 = torch.tensor(y1).to(args.device).squeeze().unsqueeze(0)
+                        y2 = y2.cpu().numpy()
+                        y2 = [y2, y2, y2]
+                        y2 = torch.tensor(y2).to(args.device).squeeze().unsqueeze(0)
+                        y_hat1 = y_hat[0]
+                        y_hat2 = y_hat[1]
+                        preds1 = torch.argmax(y_hat1, dim=-1) # [batch=1, seq_length]
+                        preds2 = torch.argmax(y_hat2, dim=-1) # [batch=1, seq_length]
+                else:
+                    if (args.N_responses == 'one'):
+                        y = y.to(args.device).squeeze()
+                        y_hat, out = model(f1, f2, ctx) # [batch, 2]
+                        preds = torch.argmax(y_hat, dim=1).squeeze(0) # [batch]
+                    elif args.N_responses == 'two':
+                        y1 = y1.to(args.device).squeeze()
+                        y2 = y2.to(args.device).squeeze()
+                        y_hat, out = model(f1, f2, ctx) # [batch, 2]
+                        preds1 = torch.argmax(y_hat[0], dim=1).squeeze(0) # [batch]
+                        preds2 = torch.argmax(y_hat[1], dim=1).squeeze(0) # [batch]
 
             if args.N_responses == 'one':    
                 c = (preds == y)

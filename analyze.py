@@ -7,6 +7,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import MDS, TSNE
 from scipy.stats import pearsonr, ttest_ind
 import statsmodels.api as sm
+from dataset import WineGrid
 
 def analyze_episodic(model, test_data, args):
     # Collect attention weights for each sample in test set
@@ -50,7 +51,7 @@ def analyze_episodic(model, test_data, args):
     used_hub = []
     for i in range(n_test):
         highest_attn = np.argsort(attention[i])[-k:]
-        test_f1, test_f2, test_ax, test_y = test[i]
+        test_f1, test_f2, test_ctx, test_y = test[i]
 
         # Get relevant hubs for current test sample
         hubs = []
@@ -68,8 +69,8 @@ def analyze_episodic(model, test_data, args):
         # Check if one of the hubs appears with f1 and f2
         attended_train = [train[idx] for idx in highest_attn]
         for sample in attended_train:
-            train_f1, train_f2, train_ax, train_y = sample
-            if train_ax != test_ax:
+            train_f1, train_f2, train_ctx, train_y = sample
+            if train_ctx != test_ctx:
                 continue # must be samples testing the same axis to be relevant
             if hubs[0] == train_f1:
                 hubs_dict[hubs[0]].append(sample[1])
@@ -106,20 +107,16 @@ def analyze_cortical(model, test_data, analyze_loader, args):
     face_embedding.to(args.device)
     embeddings = []
     # Get hiddens from the recurrent model for each face
-    hiddens_ctx0 = [] # hidden reps. for context0 (when axis = 0)
-    hiddens_ctx1 = [] # hidden reps. for context1 (when axis = 1)
+    hiddens_ctxs = [[] for i in range(args.N_contexts)]
     hiddens = [] # hidden reps. for both contexts
     hiddens_incong = []
     hiddens_cong = []
     idxs1 = []
     idxs2 = []
-    idxs1_ctx0 = []
-    idxs1_ctx1 = []
-    idxs2_ctx0 = []
-    idxs2_ctx1 = []
+    idxs1_ctxs = [[] for i in range(args.N_contexts)]
+    idxs2_ctxs = [[] for i in range(args.N_contexts)]
     samples = []
-    samples_ctx0 = []
-    samples_ctx1 = []
+    samples_ctxs =[[] for i in range(args.N_contexts)]
     samples_cong = []
     samples_incong = []
 
@@ -131,17 +128,17 @@ def analyze_cortical(model, test_data, analyze_loader, args):
             embeddings.append(embedding)
         embeddings = np.concatenate(embeddings, axis=0) # [n_states, state_dim]
         for batch in analyze_loader:
-            if args.N_responses == 'one':
-                f1, f2, ax, y, idx1, idx2 = batch
-            elif args.N_responses == 'two':
-                f1, f2, ax, y1, y2, idx1, idx2 = batch
+            if args.cortical_task == 'face_task':
+                f1, f2, ctx, y, idx1, idx2 = batch
+            elif args.cortical_task == 'wine_task':
+                f1, f2, ctx, y1, y2, idx1, idx2 = batch
             idx1 = idx1[0]
             idx2 = idx2[0]
             samples.append(batch)
             (x1, y1), (x2, y2) = idx2loc[idx1], idx2loc[idx2]
             f1 = f1.to(args.device) 
             f2 = f2.to(args.device) 
-            ax = ax.to(args.device)
+            ctx = ctx.to(args.device)
 
             # create congruent and incongruent groups
             grid_angle = np.arctan2((y2-y1),(x2-x1))
@@ -155,180 +152,172 @@ def analyze_cortical(model, test_data, analyze_loader, args):
                 cong = np.sign(phi) # 1: congruent, -1:incongruent, 0:none
 
             # get the hidden reps.    
-            y_hat, out = model(f1, f2, ax) 
+            y_hat, out = model(f1, f2, ctx) 
             # y_hat: [1, 2]
-            # rnn_out: [seq_length, 1, hidden_dim]
-            # mlp_out: dict len [2]: hidd_b/a: [1, hidden_dim]: [1, 128]
-            if args.order_ax == 'first':
+            # rnn_out: [seq_length, 1, hidden_dim]: [3, 1, 128]
+            # mlp_out: [1, hidden_dim]: [1, 128]
+            if args.order_ctx == 'first':
                 f1_ind = 1
                 f2_ind = 2
-                # ax_ind = 0
-            elif args.order_ax == 'last':
+            elif args.order_ctx == 'last':
                 f1_ind = 0
                 f2_ind = 1
-                # ax_ind = 2
 
-            if args.cortical_model=='rnn':
-                out = out.squeeze().unsqueeze(0).unsqueeze(0)
-            elif args.cortical_model=='mlp':
-                out = out.unsqueeze(0)
             out = out.cpu().numpy()
-            ax = ax.cpu().numpy()
+            ctx = ctx[0].cpu().numpy()
             idxs1.append(idx1)
             idxs2.append(idx2)
             hiddens.append(out)
-            if ax==0:
-                hiddens_ctx0.append(out)
-                idxs1_ctx0.append(idx1)
-                idxs2_ctx0.append(idx2)
-                samples_ctx0.append(batch)
-            elif ax==1:
-                hiddens_ctx1.append(out)
-                idxs1_ctx1.append(idx1)
-                idxs2_ctx1.append(idx2)
-                samples_ctx1.append(batch)
-            if cong==1:
+            hiddens_ctxs[ctx].append(out)
+            idxs1_ctxs[ctx].append(idx1)
+            idxs2_ctxs[ctx].append(idx2)
+            samples_ctxs[ctx].append(batch)
+            if ((cong==1) and ((ctx==0) or (ctx==1))):
                 hiddens_cong.append(out)
                 samples_cong.append(batch)
-            elif cong==-1:
+            elif ((cong==-1) and ((ctx==0) or (ctx==1))):
                 hiddens_incong.append(out)
                 samples_incong.append(batch)
 
-
-    hiddens = np.concatenate(hiddens, axis = 0) 
-    # data_len = 16*12*2=384 (n_states:16, n_states-ties:12, permutation:2)
-    # rnn hiddens: [data_len, 1, seq_length, hidden_dim] : [384, 1, 3, 128]
-    # mlp hiddens: [data_len, 1, hidden_dim] : [384, 1, 128]
-    hiddens_ctx0 = np.concatenate(hiddens_ctx0, axis = 0)
-    hiddens_ctx1 = np.concatenate(hiddens_ctx1, axis = 0)
-    # rnn hiddens_ctx0/_ctx1: [data_len/2, 1, seq_length, hidden_dim] : [192, 1, 3, 128]
-    # mlp hiddens_ctx0/_ctx1: [data_len/2, 1, hidden_dim] : [192, 1, 128]
-    hiddens_incong = np.concatenate(hiddens_incong, axis = 0) 
-    hiddens_cong = np.concatenate(hiddens_cong, axis = 0) 
-    # rnn hiddens_ctx0/_ctx1: [data_len/2-ties, 1, seq_length, hidden_dim] : [144, 1, 3, 128]
-    # mlp hiddens_ctx0/_ctx1: [data_len/2-ties, 1, hidden_dim] : [144, 1, 128]
-    
+    hiddens = np.asarray(hiddens).squeeze() 
+    # for n_ctx=2, data_len = 16*12*2=384 (n_states:16, n_states-ties:12, permutation:2)
+    # rnn hiddens: [data_len, seq_length, hidden_dim] : [384, 3, 128]
+    # mlp hiddens: [data_len, hidden_dim]: [384, 128]
+    # with diagonals - wine task = data_len = (n_ctx-n_diag)*192+n_diag*212 
+    # [n_ctx:2, data_len:384], [n_ctx:4, data_len:768], [n_ctx:8, data_len: 1616]
+    hiddens_incong = np.asarray(hiddens_incong).squeeze() 
+    hiddens_cong = np.asarray(hiddens_cong).squeeze() 
+    # rnn hiddens_cong/incong: [144, 3, 128]
+    # mlp hiddens_cong/incong: [144, 128]
+    hiddens_ctx = np.concatenate(hiddens_ctxs, axis = 0).squeeze()
+    # rnn hiddens_ctxs: [n_ctx, n_trials, 3, 1, 128]
+    # mlp hiddens_ctxs: [n_ctx, 192, 1, 128]
+    # rnn hiddens_ctx: [384, 3, 128]
+    # mlp hiddens_ctx: [384, 128]
+    # hiddens_ctx: even tho it is 384, but it is ordered based on the contexts
+    hiddens_inc_c =  np.concatenate((hiddens_incong, hiddens_cong), axis=0) 
+    # rnn hiddens_inc_c: [384-ties, seq_length, 128]: [288, 3, 128]
+    # mlp hiddens_inc_c: [384-ties, 128]: [288, 128]
     if args.cortical_model=='rnn':
-        hiddens_ctx = np.concatenate((hiddens_ctx0, hiddens_ctx1), axis=0)
-        hiddens_ctx = hiddens_ctx[:, :, -1, :].squeeze()
-        hiddens_inc_c =  np.concatenate((hiddens_incong, hiddens_cong), axis=0)
-        hiddens_inc_c = hiddens_inc_c[:, :, -1, :].squeeze()
-    elif args.cortical_model=='mlp':
-        hiddens_ctx = np.concatenate((hiddens_ctx0, hiddens_ctx1), axis=0).squeeze()
-        hiddens_inc_c =  np.concatenate((hiddens_incong, hiddens_cong), axis=0).squeeze()
-    samples_ctx = np.concatenate((samples_ctx0, samples_ctx1), axis=0)
+        hiddens_ctx = hiddens_ctx[:, -1, :] # [384, 128]
+        hiddens_inc_c = hiddens_inc_c[:, -1, :] #[288, 128]
+    # samples_ctxs = np.asarray(samples_ctxs)
     samples_inc_c = np.concatenate((samples_incong, samples_cong), axis=0)
-    # hiddens_ctx: [384, 128]
-    # hiddens_inc_c: [384-ties, 128]: [288, 128]
     
     avg_hidden = np.zeros([n_states, hiddens.shape[-1]])
-    avg_hidden_ctx0 = np.zeros([n_states, hiddens_ctx0.shape[-1]])
-    avg_hidden_ctx1 = np.zeros([n_states, hiddens_ctx1.shape[-1]])
-
+    avg_hidden_ctxs = np.zeros([args.N_contexts, n_states, hiddens.shape[-1]])
+    
     if args.cortical_model=='rnn':
+        hiddens_ctxs = np.asarray(hiddens_ctxs).squeeze() # [2, 192, 3, 128]
         # Take average for each face based on its location
         for f in range(n_states):
-            temp1 = [hiddens[i,:,f1_ind,:] 
+            temp1 = [hiddens[i,f1_ind,:] 
                         for i, idx1 in enumerate(idxs1) if idx1==f]
-            temp2 = [hiddens[i,:,f2_ind,:] 
-                        for i, idx2 in enumerate(idxs2) if idx2==f]         
-            temp1_ctx0 = [hiddens_ctx0[i,:,f1_ind,:] 
-                            for i, idx1 in enumerate(idxs1_ctx0) if idx1==f]
-            temp2_ctx0 = [hiddens_ctx0[i,:,f2_ind,:] 
-                            for i, idx2 in enumerate(idxs2_ctx0) if idx2==f]
-            temp1_ctx1 = [hiddens_ctx1[i,:,f1_ind,:] 
-                            for i, idx1 in enumerate(idxs1_ctx1) if idx1==f]
-            temp2_ctx1 = [hiddens_ctx1[i,:,f2_ind,:] 
-                            for i, idx2 in enumerate(idxs2_ctx1) if idx2==f]
+            temp2 = [hiddens[i,f2_ind,:] 
+                        for i, idx2 in enumerate(idxs2) if idx2==f]
             if len(temp1 + temp2)>1:
-                avg_hidden[f] = np.concatenate(temp1 + temp2, axis=0).mean(axis=0)
-            if len(temp1_ctx0 + temp2_ctx0)>1:
-                avg_hidden_ctx0[f] = np.concatenate(temp1_ctx0 + temp2_ctx0, axis=0).mean(axis=0)
-            if len(temp1_ctx1 + temp2_ctx1)>1:
-                avg_hidden_ctx1[f] = np.concatenate(temp1_ctx1 + temp2_ctx1, axis=0).mean(axis=0)
-        avg_hidden_ctx = np.concatenate((avg_hidden_ctx0, avg_hidden_ctx1))
-        # avg_hidden_ctx: [n_states*2, hidden_dim]: [32, 128] 
+                    avg_hidden[f] = np.concatenate(temp1 + temp2, axis=0).mean(axis=0)  
+            for ctx in range(args.N_contexts):
+                temp1_ctxs = [hiddens_ctxs[ctx,i,f1_ind,:] 
+                                for i, idx1 in enumerate(idxs1_ctxs[ctx]) if idx1==f]
+                temp2_ctxs = [hiddens_ctxs[ctx,i,f2_ind,:] 
+                                for i, idx2 in enumerate(idxs2_ctxs[ctx]) if idx2==f]
+                if len(temp1_ctxs + temp2_ctxs)>1:
+                    avg_hidden_ctxs[ctx, f, :] = np.concatenate(temp1_ctxs + temp2_ctxs, axis=0).mean(axis=0)
+                    # avg_hidden_ctxs: [n_contexts, n_states, hidden_dim]: [2, 16, 128] 
     elif args.cortical_model=='mlp':
         for f in range(n_states):
-            temp = [hiddens[i,:,:] 
+            temp = [hiddens[i,:] 
                         for i, (idx1, idx2) in enumerate(zip(idxs1, idxs2))
-                            if ((idx1==f) | (idx2==f))]
-            temp_ctx0 = [hiddens_ctx0[i,:,:] 
-                            for i, (idx1, idx2) in enumerate(zip(idxs1_ctx0, idxs2_ctx0))
-                            if ((idx1==f) | (idx2==f))]
-            temp_ctx1 = [hiddens_ctx1[i,:,:] 
-                            for i, (idx1, idx2) in enumerate(zip(idxs1_ctx1, idxs2_ctx1))
                             if ((idx1==f) | (idx2==f))]
             if len(temp)>1:
                 avg_hidden[f] = np.mean(temp, axis=0)
-            if len(temp_ctx0)>1:
-                avg_hidden_ctx0[f] = np.mean(temp_ctx0, axis=0)
-            if len(temp_ctx1)>1:
-                avg_hidden_ctx1[f] = np.mean(temp_ctx1, axis=0)
-        avg_hidden_ctx = np.concatenate((avg_hidden_ctx0, avg_hidden_ctx1))
-        # avg_hidden_ctx: [n_states*2, hidden_dim]: [32, 128] 
+            for ctx in range(args.N_contexts):  
+                temp_ctx = [hiddens_ctxs[ctx][i]
+                            for i, (idx1, idx2) in enumerate(zip(idxs1_ctxs[ctx], idxs2_ctxs[ctx]))
+                            if ((idx1==f) | (idx2==f))]
+                if len(temp_ctx)>1:
+                    avg_hidden_ctxs[ctx, f, :] = np.mean(temp_ctx, axis=0)
+                    # avg_hidden_ctxs: [n_contexts, n_states, hidden_dim]: [2, 16, 128] 
+        
     samples_res = {'samples': samples, 
-                  'samples_ctx': samples_ctx,
-                  'samples_inc_c': samples_inc_c}
+                   'samples_ctxs': samples_ctxs,
+                   'samples_inc_c': samples_inc_c}
 
     results = {'samples_res':samples_res,
-                'idxs1': idxs1, 'idxs2': idxs2,
-                'embeddings': embeddings, 
-                'hiddens_ctx':hiddens_ctx,
-                'avg_hidden':avg_hidden, 
-                'avg_hidden_ctx':avg_hidden_ctx,
-                'avg_hidden_ctx0': avg_hidden_ctx0, 
-                'avg_hidden_ctx1': avg_hidden_ctx1,
-                'hiddens_inc_c': hiddens_inc_c}
-    
+               'idxs1': idxs1, 'idxs2': idxs2,
+               'embeddings': embeddings, # [16, 32]
+               'hiddens_ctxs':hiddens_ctxs, # mlp: [n_ctx, 192, 1, 128]
+               'avg_hidden':avg_hidden, # [16, 128]
+               'avg_hidden_ctxs':avg_hidden_ctxs, # [n_ctx, 16, 128]
+               'hiddens_inc_c': hiddens_inc_c} # [288, 128]
     return results
 
-def calc_dist_ctx(cortical_results, test_data):
+def proportions(cortical_results, threshold=0.5):
+    hiddens_ctxs = cortical_results['hiddens_ctxs'] # [n_ctx, 192, 1, 128]
+    hiddens_ctxs = [np.concatenate(h, axis=0) for h in hiddens_ctxs]
+    ps = []
+    p_pies = []
+    for h in hiddens_ctxs: # h: [n_trials, hidden_dim]
+        p_pies.append(np.any(h>0, axis=0))
+        ps.append(np.mean(h>0, axis=0))
+    ps = np.asarray(ps)
+    s = np.sum(ps, axis=0, keepdims=True) # [1, hidden_dim]
+    n = ps / s # [n_ctx, hidden_dim] normalized - how much each unit is active for each ctx over trials normalized by the overall activity of that unit for all ctx and trials
+    print(n.sum(axis=0))
+    f = n > threshold
+    # there are some NaNs
+    prop_results = {'hiddens_ctxs': hiddens_ctxs,
+                    'p_pies': p_pies,
+                    'ps': ps,
+                    'n': n, 
+                    'f': f}
+    return prop_results
+
+
+def calc_dist_ctx(cortical_results, test_data, args):
+    N_contexts = 2 #ToDo: for now it works only for x and y, because of the angles
     # Useful dictionaries from test dataset
     n_states = test_data.n_states 
     loc2idx = test_data.loc2idx 
     idx2loc = {idx:loc for loc, idx in loc2idx.items()}
     idxs = [idx for idx in range(n_states)]
-
+    N_contexts = args.N_contexts
+    N_responses = args.N_responses
+    avg_hidden_ctxs =  cortical_results['avg_hidden_ctxs'] # [2, 16, 128]
     # Correlation
     grid_dists = []
-    hidd_dists_ctx0 = []
-    hidd_dists_ctx1 = []
-    grid_1ds_ctx0 = []
-    grid_1ds_ctx1 = []
+    hidd_dists_ctxs = [[] for i in range(N_contexts)]
+    grid_1ds_ctxs = [[] for i in range(N_contexts)]
     grid_angles = []
     samples = []
-
-    avg_hidden_ctx0 =  cortical_results['avg_hidden_ctx0']
-    avg_hidden_ctx1 =  cortical_results['avg_hidden_ctx1']
 
     for idx1, idx2 in combinations(idxs, 2):
         (x1, y1), (x2, y2) = idx2loc[idx1], idx2loc[idx2]
         samples.append((idx1, idx2))
         grid_dist = np.sqrt((x1-x2)**2 + (y1-y2)**2)
         grid_dists.append(grid_dist)
-        # Euclidean distance between hidden reps. in context0
-        hidd1, hidd2 = avg_hidden_ctx0[idx1], avg_hidden_ctx0[idx2]
-        hidd_dist = np.linalg.norm(hidd1 - hidd2)
-        hidd_dists_ctx0.append(hidd_dist)
-        # Euclidean distance between hidden reps. in context1
-        hidd1, hidd2 = avg_hidden_ctx1[idx1], avg_hidden_ctx1[idx2]
-        hidd_dist = np.linalg.norm(hidd1 - hidd2)
-        hidd_dists_ctx1.append(hidd_dist)
-        # 1D rank - Manhattan distance
-        grid_1ds_ctx0.append(np.abs(x1-x2))
-        grid_1ds_ctx1.append(np.abs(y1-y2))
-        # create on and off diagonal groups
+        for ctx in range(N_contexts):
+            # Euclidean distance between hidden reps. in context ctx
+            hidd1, hidd2 = avg_hidden_ctxs[ctx][idx1], avg_hidden_ctxs[ctx][idx2]
+            hidd_dist = np.linalg.norm(hidd1 - hidd2)
+            # hidd_dists_ctx0.append(hidd_dist)
+            hidd_dists_ctxs[ctx].append(hidd_dist)
+            # 1D rank - Manhattan distance
+            loc1 = [x1, y1]
+            loc2 = [x2, y2]
+            winegrid = WineGrid(N_responses, N_contexts)
+            r1, r2 = winegrid.ctx_to_r(ctx, loc1, loc2) 
+            grid_1ds_ctxs[ctx].append(np.abs(r1-r2))
+            # create on and off diagonal groups
+        
         grid_angle = np.arctan2((y2-y1),(x2-x1))
         grid_angles.append(grid_angle)
         
     grid_dists = np.array(grid_dists) # [(n_states*(nstates-1))/2]: [120]
     grid_angles = np.array(grid_angles) # [120]
     samples = np.array(samples)
-    hidd_dists_ctx0 = np.array(hidd_dists_ctx0)
-    hidd_dists_ctx1 = np.array(hidd_dists_ctx1)
-    grid_1ds_ctx0 = np.array(grid_1ds_ctx0)
-    grid_1ds_ctx1 = np.array(grid_1ds_ctx1)
+    hidd_dists_ctxs = np.array(hidd_dists_ctxs)
 
     phi = np.sin(2*grid_angles)
     binary_phi = np.sign(phi)
@@ -340,10 +329,8 @@ def calc_dist_ctx(cortical_results, test_data):
                      'phi': phi,
                      'binary_phi': binary_phi}
     dist_results = {'samples': samples,
-                    'hidd_dists_ctx0': hidd_dists_ctx0,
-                    'hidd_dists_ctx1': hidd_dists_ctx1,
-                    'grid_1ds_ctx0': grid_1ds_ctx0,
-                    'grid_1ds_ctx1': grid_1ds_ctx1,
+                    'hidd_dists_ctxs': hidd_dists_ctxs,
+                    'grid_1ds_ctxs': grid_1ds_ctxs,
                     'grid_dists': grid_dists,
                     'angle_results': angle_results}
     return dist_results
@@ -371,7 +358,7 @@ def calc_dist(cortical_results, test_data):
     samples = []
 
     embeddings =  cortical_results['embeddings']
-    avg_hidden =  cortical_results['avg_hidden']
+    avg_hidden =  cortical_results['avg_hidden'] # [16, 128]
 
     for idx1, idx2 in combinations(idxs, 2):
         (x1, y1), (x2, y2) = idx2loc[idx1], idx2loc[idx2]
@@ -485,65 +472,52 @@ def calc_ratio(dist_results):
     return ratio_results
 
 def analyze_dim_red(cortical_results, method, n_components):
-    embeddings = cortical_results['embeddings']
-    hiddens_ctx = cortical_results['hiddens_ctx']
-    avg_hidden = cortical_results['avg_hidden']
-    avg_hidden_ctx = cortical_results['avg_hidden_ctx']
-    avg_hidden_ctx0 = cortical_results['avg_hidden_ctx0']
-    avg_hidden_ctx1 = cortical_results['avg_hidden_ctx1']
-    hiddens_inc_c = cortical_results['hiddens_inc_c']
-
+    embeddings = cortical_results['embeddings'] # [16, 32]
+    hiddens_ctxs = cortical_results['hiddens_ctxs'] # [2, 192, 1, 128]
+    avg_hidden = cortical_results['avg_hidden'] # [16, 128]
+    avg_hidden_ctxs = cortical_results['avg_hidden_ctxs'] # [2, 16, 128]
+    hiddens_inc_c = cortical_results['hiddens_inc_c'] # [288, 128]
+    hiddens_ctxs = np.concatenate(hiddens_ctxs, axis=0).squeeze() # [384, 128]
+    avg_hidden_ctxs = np.concatenate(avg_hidden_ctxs, axis=0) # [32, 128]
     results = {}
     # PCA
     if method == 'pca':
         pca = PCA(n_components=n_components)
         pca_2d_embed = pca.fit_transform(embeddings)
-        pca_2d_hidd = pca.fit_transform(hiddens_ctx) # this is all the hiddens, no averaging for each face
+        pca_2d_hidd = pca.fit_transform(hiddens_ctxs) # this is all the hiddens, no averaging for each face
         pca_2d_avg_hidd = pca.fit_transform(avg_hidden) # I might need to save this at all
-        pca_2d_ctx_hidd = pca.fit_transform(avg_hidden_ctx)
-        pca_2d_ctx0_hidd = pca.fit_transform(avg_hidden_ctx0)
-        pca_2d_ctx1_hidd = pca.fit_transform(avg_hidden_ctx1)
+        pca_2d_ctx_hidd = pca.fit_transform(avg_hidden_ctxs)
         pca_2d_incong_cong = pca.fit_transform(hiddens_inc_c)
         results = {'embed_2d': pca_2d_embed, 
                    'hidd_2d': pca_2d_hidd,
                    'avg_hidd_2d': pca_2d_avg_hidd,
                    'ctx_hidd_2d': pca_2d_ctx_hidd,
-                   'ctx0_hidd_2d': pca_2d_ctx0_hidd, 
-                   'ctx1_hidd_2d': pca_2d_ctx1_hidd, 
                    'incong_cong_2d': pca_2d_incong_cong}
     elif method == 'mds':
         # MDS
         mds = MDS(n_components=n_components)
         mds_2d_embed = mds.fit_transform(embeddings)
-        mds_2d_hidd = mds.fit_transform(hiddens_ctx) # this is all the hiddens, no averaging for each face
+        mds_2d_hidd = mds.fit_transform(hiddens_ctxs) # this is all the hiddens, no averaging for each face
         mds_2d_avg_hidd = mds.fit_transform(avg_hidden) # I might need to save this at all
-        mds_2d_ctx_hidd = mds.fit_transform(avg_hidden_ctx)
-        mds_2d_ctx0_hidd = mds.fit_transform(avg_hidden_ctx0)
-        mds_2d_ctx1_hidd = mds.fit_transform(avg_hidden_ctx1)
+        mds_2d_ctx_hidd = mds.fit_transform(avg_hidden_ctxs)
         mds_2d_incong_cong = mds.fit_transform(hiddens_inc_c)
         results = {'embed_2d': mds_2d_embed, 
                     'hidd_2d': mds_2d_hidd,
                     'avg_hidd_2d': mds_2d_avg_hidd,
                     'ctx_hidd_2d': mds_2d_ctx_hidd,
-                    'ctx0_hidd_2d': mds_2d_ctx0_hidd, 
-                    'ctx1_hidd_2d': mds_2d_ctx1_hidd, 
                     'incong_cong_2d': mds_2d_incong_cong}
     elif method == 'tsne':
         # tSNE
         tsne = TSNE(n_components=n_components)
         tsne_2d_embed = tsne.fit_transform(embeddings)
-        tsne_2d_hidd = tsne.fit_transform(hiddens_ctx) # this is all the hiddens, no averaging for each face
+        tsne_2d_hidd = tsne.fit_transform(hiddens_ctxs) # this is all the hiddens, no averaging for each face
         tsne_2d_avg_hidd = tsne.fit_transform(avg_hidden) # I might need to save this at all
-        tsne_2d_ctx_hidd = tsne.fit_transform(avg_hidden_ctx)
-        tsne_2d_ctx0_hidd = tsne.fit_transform(avg_hidden_ctx0)
-        tsne_2d_ctx1_hidd = tsne.fit_transform(avg_hidden_ctx1)
+        tsne_2d_ctx_hidd = tsne.fit_transform(avg_hidden_ctxs)
         tsne_2d_incong_cong = tsne.fit_transform(hiddens_inc_c)
         results = {'embed_2d': tsne_2d_embed, 
                     'hidd_2d': tsne_2d_hidd,
                     'avg_hidd_2d': tsne_2d_avg_hidd,
                     'ctx_hidd_2d': tsne_2d_ctx_hidd,
-                    'ctx0_hidd_2d': tsne_2d_ctx0_hidd, 
-                    'ctx1_hidd_2d': tsne_2d_ctx1_hidd, 
                     'incong_cong_2d': tsne_2d_incong_cong}
     return results
 
@@ -629,10 +603,12 @@ def analyze_regression(dist_results):
     return reg_results
 
 def analyze_regression_1D(dist_ctx_results):
-    hidd_dists_ctx0 = dist_ctx_results['hidd_dists_ctx0']
-    hidd_dists_ctx1 = dist_ctx_results['hidd_dists_ctx1']
-    grid_1ds_ctx0 = dist_ctx_results['grid_1ds_ctx0']
-    grid_1ds_ctx1 = dist_ctx_results['grid_1ds_ctx1']
+    hidd_dists_ctxs = dist_ctx_results['hidd_dists_ctxs']
+    hidd_dists_ctx0 = hidd_dists_ctxs[0]
+    hidd_dists_ctx1 = hidd_dists_ctxs[1]
+    grid_1ds_ctxs = dist_ctx_results['grid_1ds_ctxs']
+    grid_1ds_ctx0 = grid_1ds_ctxs[0]
+    grid_1ds_ctx1 = grid_1ds_ctxs[1]
     grid_dists = dist_ctx_results['grid_dists']
     
     phi = dist_ctx_results['angle_results']['phi']
@@ -789,6 +765,9 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
         # mds_results['samples_res']  = samples_res
         # tsne_results['grid_locations'] = locs
         # tsne_results['samples_res']  = samples_res
+    if ((analysis_type=='proportions') | (analysis_type=='all')):
+        res = cortical_results[-1][-1]
+        proportion_results = proportions(res, args.N_contexts)
 
     for run in range(args.nruns_cortical):
         r_hidd, p_val_hidd, r_embed, p_val_embed = ([] for i in range(4))
@@ -812,7 +791,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
             # load the results
             cortical_res = cortical_results[run][cp]
             dist_results = calc_dist(cortical_res, test_data)
-            dist_ctx_results = calc_dist_ctx(cortical_res, test_data)
+            dist_ctx_results = calc_dist_ctx(cortical_res, test_data, args)
             dist_c_inc_results = hist_data(dist_results) 
             # distance results
             embed_dist.append(dist_results['embed_dists'])
@@ -987,6 +966,11 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
         results = {'pca_results': pca_results,
                    'dist_results': dist_results}
         with open('../results/'+'pca_'+args.out_file, 'wb') as f:
+            pickle.dump(results, f)
+    if ((analysis_type=='proportions') | (analysis_type=='all')): 
+        results = {'proportion_results': proportion_results,
+                   'dist_results': dist_results}
+        with open('../results/'+'proportion_'+args.out_file, 'wb') as f:
             pickle.dump(results, f)
 
     if ((analysis_type=='regs') | (analysis_type=='all')):
