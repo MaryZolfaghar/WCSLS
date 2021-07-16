@@ -218,7 +218,7 @@ class CorticalSystem(nn.Module):
 
 
 class RecurrentCorticalSystem(nn.Module):
-    def __init__(self, use_images):
+    def __init__(self, use_images, N_contexts):
         super(RecurrentCorticalSystem, self).__init__()
         self.use_images = use_images
 
@@ -239,7 +239,7 @@ class RecurrentCorticalSystem(nn.Module):
             self.face_embedding = nn.Embedding(self.n_states, self.state_dim)
             nn.init.xavier_normal_(self.face_embedding.weight)
             
-        self.ctx_embedding = nn.Embedding(2, self.state_dim)
+        self.ctx_embedding = nn.Embedding(N_contexts, self.state_dim)
         nn.init.xavier_normal_(self.ctx_embedding.weight)
 
         # LSTM
@@ -290,3 +290,48 @@ class RecurrentCorticalSystem(nn.Module):
         
         return x, lstm_out
 
+class StepwiseCorticalSystem(nn.Module):
+    def __init__(self, use_images):
+        super(StepwiseCorticalSystem,self).__init__()
+        self.use_images = use_images
+
+        # Hyperparameters
+        self.n_states = 16
+        self.state_dim = 32
+        self.hidden1_dim = 128
+        self.hidden2_dim = 128
+        self.mlp_in1_dim = 2*self.state_dim
+        self.mlp_in2_dim = self.hidden1_dim+self.state_dim
+        self.output_dim = 2
+        self.analyze = False
+        self.order_ctx = 'first'
+
+        # Input Embedding (images or one-hot)
+        if self.use_images:
+            self.face_embedding = CNN(self.state_dim)
+        else:
+            self.face_embedding = nn.Embedding(self.n_states, self.state_dim)
+            nn.init.xavier_normal_(self.face_embedding.weight)
+        self.ctx_embedding = nn.Embedding(2, self.state_dim)
+        nn.init.xavier_normal_(self.ctx_embedding.weight)
+
+        # MLP
+        self.hidden1 = nn.Linear(self.mlp_in1_dim, self.hidden1_dim)
+        self.hidden2 = nn.Linear(self.mlp_in2_dim, self.hidden2_dim)
+        self.resp1 = nn.Linear(self.hidden2_dim, self.output_dim)
+        self.relu = nn.ReLU()
+
+    def forward(self, f1, f2, ctx):
+        f1_embed = self.face_embedding(f1) # [batch, state_dim]
+        f2_embed = self.face_embedding(f2) # [batch, state_dim]
+        ctx_embed = self.ctx_embedding(ctx)
+
+        x1 = torch.cat([ctx_embed, f1_embed], dim=1)
+        hidd1 = self.hidden1(x1) # [batch, hidden1_dim]
+        hidd1 = self.relu(hidd1) # [batch, hidden1_dim]
+        x2 = torch.cat([hidd1, f2_embed], dim=1) # [batch, state_dim+hidden1_dim]
+        hidd2 = self.hidden2(x2) # [batch, hidden2_dim]
+        hidd2 = self.relu(hidd2) # [batch, hidden2_dim]
+        x = self.resp1(hidd2)  # [batch, output_dim]
+        hidd = [hidd1, hidd2]
+        return x, hidd

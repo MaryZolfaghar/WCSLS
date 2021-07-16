@@ -10,6 +10,7 @@ class Grid:
     def __init__(self):
         self.size = 4 # 4x4 grid (fixed)
         
+        # self.training_day = 'day3'
         # Generate locations (tuples) for each state in grid
         locs = [(i,j) for i in range(self.size) for j in range(self.size)]
         
@@ -29,6 +30,8 @@ class Grid:
         
         # Create within-group samples, excluding pairs with distance > 1
         within = []
+        day1 = []
+        day2 = []
         # group 1
         for pair, d1, d2 in zip(all_within1, d_within1_ctx1, d_within1_ctx2):
             f1 = pair[0]
@@ -36,9 +39,11 @@ class Grid:
             if abs(d1) == 1:
                 y = int(d1 > 0)
                 within.append((f1, f2, 0, y)) # (F1, F2, ctx, y)
+                day1.append((f1, f2, 0, y)) # (F1, F2, ctx, y)
             if abs(d2) == 1:
                 y = int(d2 > 0)
                 within.append((f1, f2, 1, y)) # (F1, F2, ctx, y)
+                day1.append((f1, f2, 0, y)) # (F1, F2, ctx, y)
         # group 2
         for pair, d1, d2 in zip(all_within2, d_within2_ctx1, d_within2_ctx2):
             f1 = pair[0]
@@ -46,9 +51,11 @@ class Grid:
             if abs(d1) == 1:
                 y = int(d1 > 0)
                 within.append((f1, f2, 0, y)) # (F1, F2, context, y)
+                day2.append((f1, f2, 0, y)) # (F1, F2, ctx, y)
             if abs(d2) == 1:
                 y = int(d2 > 0)
                 within.append((f1, f2, 1, y)) # (F1, F2, context, y)
+                day2.append((f1, f2, 0, y)) # (F1, F2, ctx, y)
         
         # Between-group "hub" pairs
         hubs_ctx1 = [(1,0), (2,2), (1,1), (2,3)]
@@ -241,7 +248,15 @@ class Grid:
         self.group1 = group1
         self.group2 = group2
         self.within = within
+        self.day1 = day1
+        self.day2 = day2
         self.between = between
+        # if self.training_day == 'day1':
+        #     self.train = day1
+        # elif self.training_day == 'day1_day2':
+        #     self.train = day1+day2
+        # elif self.training_day == 'day3':
+        #     self.train = train
         self.train = train
         self.test = test
         self.all_perms = all_perms
@@ -265,6 +280,7 @@ class GridDataset(Dataset):
         self.use_images = use_images # use images rather than one-hot vectors
         self.image_dir = image_dir   # directory with images
         self.grid = Grid()
+        # self.grid.training_day = training_day
 
         # Create 1 fixed mapping from locs to idxs
         locs = self.grid.locs 
@@ -397,7 +413,6 @@ class GridMetaDataset(Dataset):
         test_episode = test_episode.unsqueeze(0) # [1, n_test, sample_dim]
             
         return train_episode, test_episode
-
 
 class WineGrid:
     def __init__(self, N_responses, N_contexts):
@@ -648,7 +663,7 @@ def get_loaders(batch_size, meta, use_images, image_dir, n_episodes, \
                                  shuffle=True, collate_fn=grid_collate)
         # Analyze
         analyze_data = GridDataset(testing=False, analyzing=True, use_images=use_images, 
-                                image_dir=image_dir)
+                                   image_dir=image_dir)
         analyze_loader = DataLoader(analyze_data, batch_size=1, 
                                  shuffle=False, collate_fn=grid_collate)
 

@@ -3,11 +3,10 @@
 # conda activate /Users/Maryam/anaconda3/envs/csls
 # /Users/Maryam/anaconda3/envs/csls
 
-echo "Process rnn with two responses starts"
+echo "Process rnn starts"
 
 python main.py \
 --cortical_model 'rnn' \
---N_cortical 2000 \
---order_ax 'first' \
---N_responses 'two' \
---out_file 'ctxF_results_rnn_2resps.P' \
+--nruns_cortical 20 \
+--order_ctx 'last' \
+--out_file 'ctxL_results_rnn.P' \
