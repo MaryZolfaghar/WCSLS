@@ -240,12 +240,12 @@ def analyze_cortical(model, test_data, analyze_loader, args):
         hiddens_inc_c = hiddens_inc_c[:, -1, :] #[288, 128]
     samples_inc_c = np.concatenate((samples_incong, samples_cong), axis=0)
     
-    # if args.cortical_model=='stepwisemlp':
-    #     avg_hidden = np.zeros([2, n_states, hiddens.shape[-1]])
-    #     avg_hidden_ctxs = np.zeros([2, args.N_contexts, n_states, hiddens.shape[-1]])
-    # else:
-    avg_hidden = np.zeros([n_states, hiddens.shape[-1]])
-    avg_hidden_ctxs = np.zeros([args.N_contexts, n_states, hiddens.shape[-1]])
+    if args.cortical_model=='stepwisemlp':
+        avg_hidden = np.zeros([2, n_states, hiddens.shape[-1]])
+        avg_hidden_ctxs = np.zeros([2, args.N_contexts, n_states, hiddens.shape[-1]])
+    else:
+        avg_hidden = np.zeros([n_states, hiddens.shape[-1]])
+        avg_hidden_ctxs = np.zeros([args.N_contexts, n_states, hiddens.shape[-1]])
     
     if args.cortical_model=='rnn':
         hiddens_ctxs = np.asarray(hiddens_ctxs).squeeze() # [2, 192, 3, 128]
@@ -265,6 +265,7 @@ def analyze_cortical(model, test_data, analyze_loader, args):
                 if len(temp1_ctxs + temp2_ctxs)>1:
                     avg_hidden_ctxs[ctx, f, :] = np.concatenate(temp1_ctxs + temp2_ctxs, axis=0).mean(axis=0)
                     # avg_hidden_ctxs: [n_contexts, n_states, hidden_dim]: [2, 16, 128] 
+        avg_hidden_ctx = np.concatenate(avg_hidden_ctxs, axis=0)
     elif args.cortical_model=='mlp':
         for f in range(n_states):
             temp = [hiddens[i,:] 
@@ -273,28 +274,38 @@ def analyze_cortical(model, test_data, analyze_loader, args):
             if len(temp)>1:
                 avg_hidden[f] = np.mean(temp, axis=0)
             for ctx in range(args.N_contexts):  
-                temp_ctx = [hiddens_ctxs[ctx][i]
+                temp_ctxs = [hiddens_ctxs[ctx][i]
                             for i, (idx1, idx2) in enumerate(zip(idxs1_ctxs[ctx], idxs2_ctxs[ctx]))
                             if ((idx1==f) | (idx2==f))]
-                if len(temp_ctx)>1:
-                    avg_hidden_ctxs[ctx, f, :] = np.mean(temp_ctx, axis=0)
+                if len(temp_ctxs)>1:
+                    avg_hidden_ctxs[ctx, f, :] = np.mean(temp_ctxs, axis=0)
                     # avg_hidden_ctxs: [n_contexts, n_states, hidden_dim]: [2, 16, 128] 
+        avg_hidden_ctx = np.concatenate(avg_hidden_ctxs, axis=0)
     elif args.cortical_model=='stepwisemlp':
         # todo: how to do the averaging? over both hidden reps?
+        # hiddens_ctxs anf hiddens_inc_c for the pca results should have two dimensions, 
         hiddens_ctxs = np.asarray(hiddens_ctxs).squeeze()
         for f in range(n_states):
-            temp = [hiddens[:,i,:]
-                        for i,(idx1, idx2) in enumerate(zip(idxs1, idxs2))
-                            if ((idx1==f) | (idx2==f))]
-            if len(temp)>1:
-                avg_hidden[f] = np.mean(np.mean(temp, axis=0), axis=0)
+            temp1 = [hiddens[0,i,:] 
+                        for i, idx1 in enumerate(idxs1) if idx1==f]
+            temp2 = [hiddens[1,i,:] 
+                        for i, idx2 in enumerate(idxs2) if idx2==f]
+            if len(temp1)>1:
+                avg_hidden[0,f,:] = np.mean(temp1, axis=0)
+            if len(temp2)>1:
+                avg_hidden[1,f,:] = np.mean(temp2, axis=0)
+            # avg_hidden: [n_hidd, n_states, hidd_dim]: [2,16,128]
             for ctx in range(args.N_contexts):
-                temp_ctx = [hiddens_ctxs[:,ctx,i,:]
-                            for i, (idx1, idx2) in enumerate(zip(idxs1_ctxs[ctx], idxs2_ctxs[ctx]))
-                            if ((idx1==f) | (idx2==f))]
-                if len(temp_ctx)>1:
-                    avg_hidden_ctxs[ctx, f, :] = np.mean(np.mean(temp_ctx, axis=0), axis=0)
-                    # avg_hidden_ctxs: [n_contexts, n_states, hidden_dim]: [2, 16, 128] 
+                temp1_ctxs = [hiddens_ctxs[0,ctx,i,:] 
+                             for i, idx1 in enumerate(idxs1_ctxs[ctx]) if idx1==f]
+                temp2_ctxs = [hiddens_ctxs[1,ctx,i,:] 
+                             for i, idx2 in enumerate(idxs2_ctxs[ctx]) if idx2==f]   
+                if len(temp1_ctxs)>1:
+                    avg_hidden_ctxs[0,ctx,f,:] = np.mean(temp1_ctxs, axis=0)
+                if len(temp2_ctxs)>1:
+                    avg_hidden_ctxs[1,ctx,f,:] = np.mean(temp2_ctxs, axis=0)
+                # avg_hidden_ctxs: [n_hidd, n_contexts, n_states, hidden_dim]: [2, 2, 16, 128] 
+        avg_hidden_ctx = np.concatenate(avg_hidden_ctxs, axis=1)
     samples_res = {'samples': samples, 
                    'samples_ctxs': samples_ctxs,
                    'samples_inc_c': samples_inc_c}
@@ -302,10 +313,12 @@ def analyze_cortical(model, test_data, analyze_loader, args):
     results = {'samples_res':samples_res,
                'idxs1': idxs1, 'idxs2': idxs2,
                'embeddings': embeddings, # [16, 32]
+               'hiddens_ctx':hiddens_ctx, # mlp: [384,128] or in stepwisedmlp: [2,384,128]
                'hiddens_ctxs':hiddens_ctxs, # mlp: [n_ctx, 192, 1, 128]
-               'avg_hidden':avg_hidden, # [16, 128]
-               'avg_hidden_ctxs':avg_hidden_ctxs, # [n_ctx, 16, 128]
-               'hiddens_inc_c': hiddens_inc_c} # [288, 128]
+               'avg_hidden':avg_hidden, # [16, 128] or [n_hidd=2, 16, 128]
+               'avg_hidden_ctx':avg_hidden_ctx, # [32, 128] or [n_hidd=2, 32, 128]
+               'avg_hidden_ctxs':avg_hidden_ctxs, # [n_ctx, 16, 128] or [n_hidd=2, n_ctx, 16, 128]
+               'hiddens_inc_c': hiddens_inc_c} # [288, 128] or [n_hidd=2, 288, 128]
     return results
 
 def proportions(cortical_results):
@@ -363,9 +376,15 @@ def calc_dist_ctx(cortical_results, test_data, args):
         grid_dists.append(grid_dist)
         for ctx in range(N_contexts):
             # Euclidean distance between hidden reps. in context ctx
-            hidd1, hidd2 = avg_hidden_ctxs[ctx][idx1], avg_hidden_ctxs[ctx][idx2]
-            hidd_dist = np.linalg.norm(hidd1 - hidd2)
-            # hidd_dists_ctx0.append(hidd_dist)
+            if args.cortical_model=='stepwisemlp':
+                hidd_dist = np.zeros([2])
+                hidd1, hidd2 = avg_hidden_ctxs[0,ctx,idx1,:], avg_hidden_ctxs[0,ctx,idx2,:]
+                hidd_dist[0] = np.linalg.norm(hidd1 - hidd2)
+                hidd1, hidd2 = avg_hidden_ctxs[1,ctx,idx1,:], avg_hidden_ctxs[1,ctx,idx2,:]
+                hidd_dist[1] = np.linalg.norm(hidd1 - hidd2)
+            else:
+                hidd1, hidd2 = avg_hidden_ctxs[ctx][idx1], avg_hidden_ctxs[ctx][idx2]
+                hidd_dist = np.linalg.norm(hidd1 - hidd2)
             hidd_dists_ctxs[ctx].append(hidd_dist)
             # 1D rank - Manhattan distance
             loc1 = [x1, y1]
@@ -381,7 +400,7 @@ def calc_dist_ctx(cortical_results, test_data, args):
     grid_dists = np.array(grid_dists) # [(n_states*(nstates-1))/2]: [120]
     grid_angles = np.array(grid_angles) # [120]
     samples = np.array(samples)
-    hidd_dists_ctxs = np.array(hidd_dists_ctxs)
+    hidd_dists_ctxs = np.array(hidd_dists_ctxs) # [n_ctx, sampels, n_hidds]: in mlp: [2,120], in stepwisemlp: [2,120,2]
 
     phi = np.sin(2*grid_angles)
     binary_phi = np.sign(phi)
@@ -399,7 +418,7 @@ def calc_dist_ctx(cortical_results, test_data, args):
                     'angle_results': angle_results}
     return dist_results
 
-def calc_dist(cortical_results, test_data):
+def calc_dist(cortical_results, test_data, args):
     # Useful dictionaries from test dataset
     n_states = test_data.n_states 
     loc2idx = test_data.loc2idx 
@@ -434,8 +453,15 @@ def calc_dist(cortical_results, test_data):
         embed_dist = np.linalg.norm(emb1 - emb2)
         embed_dists.append(embed_dist)
         # Euclidean distance between hidden reps.
-        hidd1, hidd2 = avg_hidden[idx1], avg_hidden[idx2]
-        hidd_dist = np.linalg.norm(hidd1 - hidd2)
+        if args.cortical_model=='stepwisemlp':
+            hidd_dist = np.zeros([2])
+            hidd1, hidd2 = avg_hidden[0,idx1], avg_hidden[0,idx2]
+            hidd_dist[0] = np.linalg.norm(hidd1 - hidd2)
+            hidd1, hidd2 = avg_hidden[1,idx1], avg_hidden[1,idx2]
+            hidd_dist[1] = np.linalg.norm(hidd1 - hidd2)
+        else:
+            hidd1, hidd2 = avg_hidden[idx1], avg_hidden[idx2]
+            hidd_dist = np.linalg.norm(hidd1 - hidd2)
         hidd_dists.append(hidd_dist)
         # create on and off diagonal groups
         grid_angle = np.arctan2((y2-y1),(x2-x1))
@@ -448,7 +474,6 @@ def calc_dist(cortical_results, test_data):
             cong = 0
         else:
             cong = np.sign(phi) # 1: congruent, -1:incongruent, 0:none
-        
         if cong==1:
             cong_hidd_dists.append(hidd_dist)
             cong_grid_dists.append(grid_dist)
@@ -459,7 +484,6 @@ def calc_dist(cortical_results, test_data):
             incong_grid_dists.append(grid_dist)
             incong_embed_dists.append(embed_dist)
             incong_grid_angles.append(grid_angle)      
-        
     grid_dists = np.array(grid_dists) # [(n_states*(nstates-1))/2]: [120]
     embed_dists = np.array(embed_dists)
     hidd_dists = np.array(hidd_dists)
@@ -527,8 +551,8 @@ def calc_ratio(dist_results):
     # hiddens
     cong_hidd_dists = dist_results['cong_dist_results']['cong_hidd_dists']
     incong_hidd_dists = dist_results['incong_dist_results']['incong_hidd_dists']
-    avg_cong_hidd = np.mean(cong_hidd_dists)
-    avg_incong_hidd = np.mean(incong_hidd_dists)
+    avg_cong_hidd = np.mean(cong_hidd_dists, axis=0)
+    avg_incong_hidd = np.mean(incong_hidd_dists, axis=0)
     ratio_hidd = (avg_cong_hidd/avg_incong_hidd)
     
     ratio_results = {'ratio_embed': ratio_embed, 'ratio_hidd': ratio_hidd}
@@ -537,23 +561,38 @@ def calc_ratio(dist_results):
 
 def analyze_dim_red(args, cortical_results, method, n_components):
     embeddings = cortical_results['embeddings'] # [16, 32]
-    hiddens_ctxs = cortical_results['hiddens_ctxs'] # [2, 192, 1, 128]
-    avg_hidden = cortical_results['avg_hidden'] # [16, 128]
-    avg_hidden_ctxs = cortical_results['avg_hidden_ctxs'] # [2, 16, 128]
-    hiddens_inc_c = cortical_results['hiddens_inc_c'] # [288, 128]
-    hiddens_ctxs = np.concatenate(hiddens_ctxs, axis=0).squeeze() # [384, 128] or [384, 3, 128]
-    if args.cortical_model == 'rnn':
-        hiddens_ctxs = hiddens_ctxs[:,-1, :]
-    avg_hidden_ctxs = np.concatenate(avg_hidden_ctxs, axis=0) # [32, 128]
+    hiddens_ctx = cortical_results['hiddens_ctx'] # [384, 128] or in stepwisemlp: [2,384,128]
+    avg_hidden = cortical_results['avg_hidden'] # [16, 128] or in stepwisemlp: [2,16,128]
+    avg_hidden_ctx = cortical_results['avg_hidden_ctx'] # [32, 128] or in stepwisemlp: [2,32,128]
+    hiddens_inc_c = cortical_results['hiddens_inc_c'] # [288, 128] or in stepwisemlp: [2,288,128]
+    # hiddens_ctx = np.asarray(hiddens_ctxs)
+    # hiddens_ctxs = np.concatenate(hiddens_ctxs, axis=0).squeeze() # [384, 128] or [384, 3, 128]
+    # if args.cortical_model == 'rnn':
+    #     hiddens_ctxs = hiddens_ctxs[:,-1, :]
+    # avg_hidden_ctxs = np.concatenate(avg_hidden_ctxs, axis=0) # [32, 128]
     results = {}
     # PCA
     if method == 'pca':
         pca = PCA(n_components=n_components)
         pca_2d_embed = pca.fit_transform(embeddings)
-        pca_2d_hidd = pca.fit_transform(hiddens_ctxs) # this is all the hiddens, no averaging for each face
-        pca_2d_avg_hidd = pca.fit_transform(avg_hidden) # I might need to save this at all
-        pca_2d_ctx_hidd = pca.fit_transform(avg_hidden_ctxs)
-        pca_2d_incong_cong = pca.fit_transform(hiddens_inc_c)
+        if args.cortical_model=='stepwisemlp':
+            pca_2d_hidd = np.zeros([hiddens_ctx.shape[0], hiddens_ctx.shape[1], n_components])
+            pca_2d_hidd[0,:,:] = pca.fit_transform(hiddens_ctx[0,:,:]) # this is all the hiddens, no averaging for each face
+            pca_2d_hidd[1,:,:] = pca.fit_transform(hiddens_ctx[1,:,:])
+            pca_2d_avg_hidd = np.zeros([avg_hidden.shape[0], avg_hidden.shape[1], n_components])
+            pca_2d_avg_hidd[0,:,:] = pca.fit_transform(avg_hidden[0,:,:]) 
+            pca_2d_avg_hidd[1,:,:] = pca.fit_transform(avg_hidden[1,:,:]) 
+            pca_2d_ctx_hidd = np.zeros([avg_hidden_ctx.shape[0], avg_hidden_ctx.shape[1], n_components])
+            pca_2d_ctx_hidd[0,:,:] = pca.fit_transform(avg_hidden_ctx[0,:,:])
+            pca_2d_ctx_hidd[1,:,:] = pca.fit_transform(avg_hidden_ctx[1,:,:])
+            pca_2d_incong_cong = np.zeros([hiddens_inc_c.shape[0], hiddens_inc_c.shape[1], n_components])
+            pca_2d_incong_cong[0,:,:] = pca.fit_transform(hiddens_inc_c[0,:,:])
+            pca_2d_incong_cong[1,:,:] = pca.fit_transform(hiddens_inc_c[1,:,:]) 
+        else:
+            pca_2d_hidd = pca.fit_transform(hiddens_ctx) # this is all the hiddens, no averaging for each face
+            pca_2d_avg_hidd = pca.fit_transform(avg_hidden) # I might need to save this at all
+            pca_2d_ctx_hidd = pca.fit_transform(avg_hidden_ctx)
+            pca_2d_incong_cong = pca.fit_transform(hiddens_inc_c)
         results = {'embed_2d': pca_2d_embed, 
                    'hidd_2d': pca_2d_hidd,
                    'avg_hidd_2d': pca_2d_avg_hidd,
@@ -563,9 +602,9 @@ def analyze_dim_red(args, cortical_results, method, n_components):
         # MDS
         mds = MDS(n_components=n_components)
         mds_2d_embed = mds.fit_transform(embeddings)
-        mds_2d_hidd = mds.fit_transform(hiddens_ctxs) # this is all the hiddens, no averaging for each face
+        mds_2d_hidd = mds.fit_transform(hiddens_ctx) # this is all the hiddens, no averaging for each face
         mds_2d_avg_hidd = mds.fit_transform(avg_hidden) # I might need to save this at all
-        mds_2d_ctx_hidd = mds.fit_transform(avg_hidden_ctxs)
+        mds_2d_ctx_hidd = mds.fit_transform(avg_hidden_ctx)
         mds_2d_incong_cong = mds.fit_transform(hiddens_inc_c)
         results = {'embed_2d': mds_2d_embed, 
                     'hidd_2d': mds_2d_hidd,
@@ -576,9 +615,9 @@ def analyze_dim_red(args, cortical_results, method, n_components):
         # tSNE
         tsne = TSNE(n_components=n_components)
         tsne_2d_embed = tsne.fit_transform(embeddings)
-        tsne_2d_hidd = tsne.fit_transform(hiddens_ctxs) # this is all the hiddens, no averaging for each face
+        tsne_2d_hidd = tsne.fit_transform(hiddens_ctx) # this is all the hiddens, no averaging for each face
         tsne_2d_avg_hidd = tsne.fit_transform(avg_hidden) # I might need to save this at all
-        tsne_2d_ctx_hidd = tsne.fit_transform(avg_hidden_ctxs)
+        tsne_2d_ctx_hidd = tsne.fit_transform(avg_hidden_ctx)
         tsne_2d_incong_cong = tsne.fit_transform(hiddens_inc_c)
         results = {'embed_2d': tsne_2d_embed, 
                     'hidd_2d': tsne_2d_hidd,
@@ -587,10 +626,18 @@ def analyze_dim_red(args, cortical_results, method, n_components):
                     'incong_cong_2d': tsne_2d_incong_cong}
     return results
 
-def analyze_ttest(dist_results):  
+def analyze_ttest(args, dist_results):  
     cong_res = dist_results['cong_dist_results']
     incong_res = dist_results['incong_dist_results']
-    t_hidd, t_p_val_hidd   = ttest_ind(cong_res['cong_hidd_dists'], 
+    
+    incong_hidd_dists = incong_res['incong_hidd_dists']
+    cong_hidd_dists = cong_res['cong_hidd_dists']
+    if args.cortical_model == 'stepwisemlp':
+        t_hidd, t_p_val_hidd = np.zeros([2]), np.zeros([2])
+        for h in range(2):
+            t_hidd[h], t_p_val_hidd[h]   = ttest_ind(cong_hidd_dists[:,h], incong_hidd_dists[:,h])
+    else:
+        t_hidd, t_p_val_hidd   = ttest_ind(cong_res['cong_hidd_dists'], 
                                        incong_res['incong_hidd_dists'])
     t_embed, t_p_val_embed = ttest_ind(cong_res['cong_embed_dists'], 
                                        incong_res['incong_embed_dists'])
@@ -601,22 +648,38 @@ def analyze_ttest(dist_results):
                     't_grid':t_grid, 't_p_val_grid': t_p_val_grid}
     return ttest_results
 
-def analyze_corr(dist_results):
+def analyze_corr(args, dist_results):
     grid_dists = dist_results['grid_dists']
     embed_dists = dist_results['embed_dists'] 
     hidd_dists = dist_results['hidd_dists']    
     cong_res = dist_results['cong_dist_results']
     incong_res = dist_results['incong_dist_results']
     r_embed, p_val_embed = pearsonr(grid_dists, embed_dists)
-    r_hidd, p_val_hidd = pearsonr(grid_dists, hidd_dists)
-    r_cong_hidd, p_val_cong_hidd = pearsonr(cong_res['cong_grid_dists'], 
-                                            cong_res['cong_hidd_dists'])
-    r_incong_hidd, p_val_incong_hidd = pearsonr(incong_res['incong_grid_dists'],
-                                                incong_res['incong_hidd_dists'])
+    if args.cortical_model == 'stepwisemlp':
+        r_hidd, p_val_hidd = np.zeros([2]), np.zeros([2])
+        r_hidd[0], p_val_hidd[0] = pearsonr(grid_dists, hidd_dists[:,0])
+        r_hidd[1], p_val_hidd[1] = pearsonr(grid_dists, hidd_dists[:,1])
+        r_cong_hidd, p_val_cong_hidd, r_incong_hidd,  p_val_incong_hidd = \
+             np.zeros([2]), np.zeros([2]), np.zeros([2]), np.zeros([2])
+        cong_hidd_dists, incong_hidd_dists = cong_res['cong_hidd_dists'], \
+                                             incong_res['incong_hidd_dists']
+        for h in range(2):
+            r_cong_hidd[h], p_val_cong_hidd[h] = pearsonr(cong_res['cong_grid_dists'], 
+                                                          cong_hidd_dists[:,h])     
+        
+            r_incong_hidd[h], p_val_incong_hidd[h] = pearsonr(incong_res['incong_grid_dists'],
+                                                              incong_hidd_dists[:,h])                                
+        
+    else:
+        r_hidd, p_val_hidd = pearsonr(grid_dists, hidd_dists)
+        r_cong_hidd, p_val_cong_hidd = pearsonr(cong_res['cong_grid_dists'], 
+                                                cong_res['cong_hidd_dists'])
+        r_incong_hidd, p_val_incong_hidd = pearsonr(incong_res['incong_grid_dists'],
+                                                    incong_res['incong_hidd_dists'])
     r_cong_embed, p_val_cong_embed = pearsonr(cong_res['cong_grid_dists'], 
-                                              cong_res['cong_embed_dists'])
+                                            cong_res['cong_embed_dists'])
     r_incong_embed, p_val_incong_embed = pearsonr(incong_res['incong_grid_dists'], 
-                                                  incong_res['incong_embed_dists']) 
+                                                incong_res['incong_embed_dists']) 
     corr_results = {'r_embed': r_embed, 'p_val_embed': p_val_embed,
                            'r_cong_embed': r_cong_embed, 
                            'p_val_cong_embed': p_val_cong_embed,
@@ -629,46 +692,77 @@ def analyze_corr(dist_results):
                            'p_val_incong_hidd': p_val_incong_hidd}
     return corr_results
 
-def analyze_regression(dist_results):
+def analyze_regression(args, dist_results):
     hidd_dists = dist_results['hidd_dists']
     grid_dists = dist_results['grid_dists']
     
     phi = dist_results['angle_results']['phi']
     binary_phi = dist_results['angle_results']['binary_phi']
-    
-            
+           
     # prepare data for the regression analysis
     x_cat = np.concatenate((grid_dists.reshape((-1,1)), binary_phi.reshape((-1,1))),axis=1)
     x_con = np.concatenate((grid_dists.reshape((-1,1)), phi.reshape((-1,1))),axis=1)
-
-    y = hidd_dists
-
     # categorical regression analysis
     x_cat = sm.add_constant(x_cat)
-    stats_model_cat = sm.OLS(y,x_cat).fit() 
-    y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
-    cat_reg = {'p_val': stats_model_cat.pvalues,
-               't_val': stats_model_cat.tvalues,
-               'param': stats_model_cat.params,
+    if args.cortical_model=='stepwisemlp':
+        p_val, t_val, param, bse = ([[] for i in range(2)] for i in range(4))
+    else:
+        p_val, t_val, param, y_hat_E, y, bse = ([] for i in range(6))
+    if args.cortical_model == 'stepwisemlp':
+        y_hat_E = np.zeros(hidd_dists.shape)
+        y = np.zeros(hidd_dists.shape)
+        for h in range(2):
+            # y = hidd_dists[:,h]
+            y[:,h] = hidd_dists[:,h]
+            stats_model_cat = sm.OLS(y[:,h],x_cat).fit() 
+            y_hat_E[:,h] = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
+            p_val[h], t_val[h], param[h], bse[h] = stats_model_cat.pvalues, stats_model_cat.tvalues, \
+            stats_model_cat.params, stats_model_cat.bse
+    else:
+        y = hidd_dists
+        stats_model_cat = sm.OLS(y,x_cat).fit() 
+        y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
+        p_val, t_val, param, bse = stats_model_cat.pvalues, stats_model_cat.tvalues, \
+            stats_model_cat.params, stats_model_cat.bse
+    cat_reg = {'p_val': p_val,
+               't_val': t_val,
+               'param': param,
                'y_hat_E': y_hat_E,
                'y': y,
-               'bse': stats_model_cat.bse}
+               'bse': bse}
     # continuous regression analysis
     x_con = sm.add_constant(x_con)
-    stats_model_con = sm.OLS(y,x_con).fit()
-    y_hat_E = stats_model_con.params[0] + (stats_model_con.params[1]*grid_dists)
-    con_reg = {'p_val': stats_model_con.pvalues,
-               't_val': stats_model_con.tvalues,
-               'param': stats_model_con.params,
+    if args.cortical_model=='stepwisemlp':
+        p_val, t_val, param, bse = ([[] for i in range(2)] for i in range(4))
+    else:
+        p_val, t_val, param, y_hat_E, y, bse = ([] for i in range(6))
+    if args.cortical_model == 'stepwisemlp':
+        y_hat_E = np.zeros(hidd_dists.shape)
+        y = np.zeros(hidd_dists.shape)
+        for h in range(2):
+            y[:,h] = hidd_dists[:,h]
+            stats_model_con = sm.OLS(y[:,h],x_con).fit()
+            y_hat_E[:,h] = stats_model_con.params[0] + (stats_model_con.params[1]*grid_dists)
+            p_val[h], t_val[h], param[h], bse[h] = stats_model_con.pvalues, stats_model_con.tvalues, \
+            stats_model_con.params, stats_model_con.bse
+    else:
+        y = hidd_dists
+        stats_model_con = sm.OLS(y,x_con).fit()
+        y_hat_E = stats_model_con.params[0] + (stats_model_con.params[1]*grid_dists)
+        p_val, t_val, param, bse = stats_model_con.pvalues, stats_model_con.tvalues, \
+            stats_model_con.params, stats_model_con.bse
+    con_reg = {'p_val': p_val,
+               't_val': t_val,
+               'param': param,
                'y_hat_E': y_hat_E,
                'y': y,
-               'bse': stats_model_con.bse}
+               'bse': bse}
 
     reg_results = {'cat_reg': cat_reg, 
                    'con_reg': con_reg}
     return reg_results
 
-def analyze_regression_1D(dist_ctx_results):
+def analyze_regression_1D(args,dist_ctx_results):
     hidd_dists_ctxs = dist_ctx_results['hidd_dists_ctxs']
     hidd_dists_ctx0 = hidd_dists_ctxs[0]
     hidd_dists_ctx1 = hidd_dists_ctxs[1]
@@ -690,35 +784,65 @@ def analyze_regression_1D(dist_ctx_results):
                             binary_phi_ctx.reshape((-1,1))),axis=1) # [240, 3]
     x_con = np.concatenate((grid_dists_ctx.reshape((-1,1)), grid_1ds_ctx.reshape((-1,1)),
                             phi_ctx.reshape((-1,1))),axis=1)
-
-    y = hidd_dists_ctx
-
+    
     # categorical regression analysis
     x_cat = sm.add_constant(x_cat)
-    stats_model_cat = sm.OLS(y,x_cat).fit() 
-    y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
-    cat_reg = {'p_val': stats_model_cat.pvalues,
-               't_val': stats_model_cat.tvalues,
-               'param': stats_model_cat.params,
+    if args.cortical_model=='stepwisemlp':
+        p_val, t_val, param, y_hat_E, y, bse = ([[] for i in range(2)] for i in range(6))
+    else:
+        p_val, t_val, param, y_hat_E, y, bse = ([] for i in range(6))
+    if args.cortical_model == 'stepwisemlp':
+        y_hat_E = np.zeros(hidd_dists_ctx.shape)
+        for h in range(2):
+            y = hidd_dists_ctx[:,h]
+            stats_model_cat = sm.OLS(y,x_cat).fit() 
+            y_hat_E[:,h] = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists_ctx)        
+            p_val[h], t_val[h], param[h], bse[h] = stats_model_cat.pvalues, stats_model_cat.tvalues, \
+            stats_model_cat.params, stats_model_cat.bse
+    else:
+        y = hidd_dists_ctx
+        stats_model_cat = sm.OLS(y,x_cat).fit() 
+        y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists_ctx)
+        p_val, t_val, param, bse = stats_model_cat.pvalues, stats_model_cat.tvalues, \
+            stats_model_cat.params, stats_model_cat.bse
+    cat_reg = {'p_val': p_val,
+               't_val': t_val,
+               'param': param,
                'y_hat_E': y_hat_E,
                'y': y,
-               'bse': stats_model_cat.bse}
+               'bse': bse}
     # continuous regression analysis
     x_con = sm.add_constant(x_con)
-    stats_model_con = sm.OLS(y,x_con).fit()
-    y_hat_E = stats_model_con.params[0] + (stats_model_con.params[1]*grid_dists)
-    con_reg = {'p_val': stats_model_con.pvalues,
-               't_val': stats_model_con.tvalues,
-               'param': stats_model_con.params,
+    if args.cortical_model=='stepwisemlp':
+        p_val, t_val, param, y_hat_E, y, bse = ([[] for i in range(2)] for i in range(6))
+    else:
+        p_val, t_val, param, y_hat_E, y, bse = ([] for i in range(6))
+    if args.cortical_model == 'stepwisemlp':
+        y_hat_E = np.zeros(hidd_dists_ctx.shape)
+        for h in range(2):
+            y = hidd_dists_ctx[:,h]
+            stats_model_con = sm.OLS(y,x_con).fit()
+            y_hat_E[:,h] = stats_model_con.params[0] + (stats_model_con.params[1]*grid_dists_ctx)        
+            p_val[h], t_val[h], param[h], bse[h] = stats_model_con.pvalues, stats_model_con.tvalues, \
+            stats_model_con.params, stats_model_con.bse
+    else:
+        y = hidd_dists_ctx
+        stats_model_con = sm.OLS(y,x_con).fit()
+        y_hat_E = stats_model_con.params[0] + (stats_model_con.params[1]*grid_dists_ctx)
+        p_val, t_val, param, bse = stats_model_con.pvalues, stats_model_con.tvalues, \
+            stats_model_con.params, stats_model_con.bse
+    con_reg = {'p_val': p_val,
+               't_val': t_val,
+               'param': param,
                'y_hat_E': y_hat_E,
                'y': y,
-               'bse': stats_model_con.bse}
+               'bse': bse}
 
     reg_results = {'cat_reg': cat_reg, 
                    'con_reg': con_reg}
     return reg_results
 
-def analyze_regression_exc(dist_results, test_data):
+def analyze_regression_exc(args, dist_results, test_data):
     # Useful dictionaries from test dataset
     n_states = test_data.n_states 
     hidd_dists = dist_results['hidd_dists'] #[n_combinations]: [120]
@@ -726,56 +850,106 @@ def analyze_regression_exc(dist_results, test_data):
     binary_phi = dist_results['angle_results']['binary_phi'] # [120]
     samples = dist_results['samples'] # [120, 2]
     states=[]
-    p_vals, t_vals, params, y_hat_Es, ys, bses = ([] for i in range(6))
-    
+    if args.cortical_model=='stepwisemlp':
+        p_vals, t_vals, params, bses = ([[] for i in range(2)] for i in range(4))
+    else:
+        p_vals, t_vals, params, y_hat_Es, ys, bses = ([] for i in range(6))
+
     for state in range(n_states):
         s_idxs = [i for i, sample in enumerate(samples) if state not in sample] # [105]
         # prepare data for the regression analysis
         x_cat = np.concatenate((grid_dists[s_idxs].reshape((-1,1)), binary_phi[s_idxs].reshape((-1,1))),axis=1)
-        y = hidd_dists[s_idxs]
         # regression analysis
         x_cat = sm.add_constant(x_cat)
+        if args.cortical_model == 'stepwisemlp':
+            y_hat_Es = np.zeros(hidd_dists.shape)
+            ys = np.zeros(hidd_dists.shape)
+            for h in range(2):
+                y = hidd_dists[s_idxs,h]
+                ys[s_idxs,h] = y
+                stats_model_cat = sm.OLS(y,x_cat).fit() 
+                y_hat_Es[:,h] = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
+                p_vals[h].append(stats_model_cat.pvalues)
+                t_vals[h].append(stats_model_cat.tvalues)
+                params[h].append(stats_model_cat.params)
+                # y_hat_Es[h].append(y_hat_E)
+                bses[h].append(stats_model_cat.bse)
+        else:
+            y = hidd_dists[s_idxs]
+            ys.append(y)
+            stats_model_cat = sm.OLS(y,x_cat).fit() 
+            y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
+            p_vals.append(stats_model_cat.pvalues)
+            t_vals.append(stats_model_cat.tvalues)
+            params.append(stats_model_cat.params)
+            y_hat_Es.append(y_hat_E)
+            bses.append(stats_model_cat.bse)
+        states.append(state)
+        
+    # regression analysis - after removing (0,0) and (3,3)
+    s_idxs = [i for i, sample in enumerate(samples) if ((0 not in sample) & (15 not in sample))] # [91]
+    x_cat = np.concatenate((grid_dists[s_idxs].reshape((-1,1)), binary_phi[s_idxs].reshape((-1,1))),axis=1)
+    x_cat = sm.add_constant(x_cat)
+    if args.cortical_model == 'stepwisemlp':
+            y_hat_Es = np.zeros(hidd_dists.shape)
+            ys = np.zeros(hidd_dists.shape)
+            for h in range(2):
+                y = hidd_dists[s_idxs,h]
+                ys[s_idxs,h] = y
+                stats_model_cat = sm.OLS(y,x_cat).fit() 
+                y_hat_Es[:,h] = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
+                p_vals[h].append(stats_model_cat.pvalues)
+                t_vals[h].append(stats_model_cat.tvalues)
+                params[h].append(stats_model_cat.params)
+                # y_hat_Es[h].append(y_hat_E)
+                bses[h].append(stats_model_cat.bse)
+    else:
+        y = hidd_dists[s_idxs]
+        ys.append(y)
         stats_model_cat = sm.OLS(y,x_cat).fit() 
         y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
-        states.append(state)
         p_vals.append(stats_model_cat.pvalues)
         t_vals.append(stats_model_cat.tvalues)
         params.append(stats_model_cat.params)
         y_hat_Es.append(y_hat_E)
         bses.append(stats_model_cat.bse)
-    # regression analysis - after removing (0,0) and (3,3)
-    s_idxs = [i for i, sample in enumerate(samples) if ((0 not in sample) & (15 not in sample))] # [91]
-    x_cat = np.concatenate((grid_dists[s_idxs].reshape((-1,1)), binary_phi[s_idxs].reshape((-1,1))),axis=1)
-    y = hidd_dists[s_idxs]
-    x_cat = sm.add_constant(x_cat)
-    stats_model_cat = sm.OLS(y,x_cat).fit() 
-    y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
     states.append(16)
-    p_vals.append(stats_model_cat.pvalues)
-    t_vals.append(stats_model_cat.tvalues)
-    params.append(stats_model_cat.params)
-    y_hat_Es.append(y_hat_E)
-    bses.append(stats_model_cat.bse)
+    
     # regression analysis - after removing (0,0) and (3,3), (3,0) and (0.3)
     s_idxs = [i for i, sample in enumerate(samples) if ((0 not in sample) & (15 not in sample) &
                                                         (3 not in sample) & (12 not in sample))] #[66]
     x_cat = np.concatenate((grid_dists[s_idxs].reshape((-1,1)), binary_phi[s_idxs].reshape((-1,1))),axis=1)
-    y = hidd_dists[s_idxs]
     x_cat = sm.add_constant(x_cat)
-    stats_model_cat = sm.OLS(y,x_cat).fit() 
-    y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
+    if args.cortical_model == 'stepwisemlp':
+            y_hat_Es = np.zeros(hidd_dists.shape)
+            ys = np.zeros(hidd_dists.shape)
+            for h in range(2):
+                y = hidd_dists[s_idxs,h]  
+                ys[s_idxs,h] = y
+                y_hat_Es[:,h] = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
+                p_vals[h].append(stats_model_cat.pvalues)
+                t_vals[h].append(stats_model_cat.tvalues)
+                params[h].append(stats_model_cat.params)
+                # y_hat_Es[h].append(y_hat_E)
+                bses[h].append(stats_model_cat.bse)
+    else:
+        y = hidd_dists[s_idxs]
+        ys.append(y)
+        stats_model_cat = sm.OLS(y,x_cat).fit() 
+        y_hat_E = stats_model_cat.params[0] + (stats_model_cat.params[1]*grid_dists)
+        p_vals.append(stats_model_cat.pvalues)
+        t_vals.append(stats_model_cat.tvalues)
+        params.append(stats_model_cat.params)
+        y_hat_Es.append(y_hat_E)
+        bses.append(stats_model_cat.bse)
     states.append(17)
-    p_vals.append(stats_model_cat.pvalues)
-    t_vals.append(stats_model_cat.tvalues)
-    params.append(stats_model_cat.params)
-    y_hat_Es.append(y_hat_E)
-    bses.append(stats_model_cat.bse)
 
     states = np.array(states)
     p_vals = np.array(p_vals)
     t_vals = np.array(t_vals)
     params = np.array(params)
     y_hat_Es = np.array(y_hat_Es)
+    ys = np.array(ys)
     bses = np.array(bses)
     
     exc_reg_results = {'excluded_states': states,
@@ -850,335 +1024,7 @@ def analyze_test_seq(cortical_result):
     # print('Accuracy at t=%s (face%s) contex 1:' %(hidd_t_idx,hidd_t_idx), ctx1_accs)
     return ctx0_accs, ctx1_accs
 
-
-
 # do the analysis over multiple runs
-def analyze_cortical_mruns1(cortical_results, test_data, args):
-    n_states = test_data.n_states 
-    loc2idx = test_data.loc2idx 
-    idx2loc = {idx:loc for loc, idx in loc2idx.items()}
-    idxs = [idx for idx in range(n_states)]
-    locs = [idx2loc[idx] for idx in idxs]
-    analysis_type = args.analysis_type
-
-    checkpoints = len(cortical_results[0])
-    r_hidds, p_val_hidds, r_embeds, p_val_embeds = ([] for i in range(4))
-    ratio_hidds, ratio_embeds = ([] for i in range(2))
-    t_stat_embeds, t_p_val_embeds, t_stat_hidds, t_p_val_hidds = \
-        ([] for i in range(4))
-    p_val_cat_regs, t_val_cat_regs, param_cat_regs, bse_cat_regs, \
-        y_cat_regs, y_hat_E_cat_regs = ([] for i in range(6))
-    p_val_con_regs, t_val_con_regs, param_con_regs, bse_con_regs, \
-        y_con_regs, y_hat_E_con_regs = ([] for i in range(6))
-    p_val_exc_regs, t_val_exc_regs, param_exc_regs, y_exc_regs, \
-            y_hat_E_exc_regs, bse_exc_regs = ([] for i in range(6))
-    p_val_1D_regs, t_val_1D_regs, param_1D_regs, y_1D_regs, \
-            y_hat_E_1D_regs, bse_1D_regs  = ([] for i in range(6))
-    cong_embed_dists, incong_embed_dists, cong_hidd_dists, \
-        incong_hidd_dists = ([] for i in range(4))
-    embed_dists, hidd_dists, grid_dists,  grid_angles \
-        = ([] for i in range(4))
-    proportion_results = [[] for i in range(args.nruns_cortical)]
-
-    corr_results, reg_results, ttest_results, ratio_results, = ({} for i in range(4))
-    pca_results, tsne_results, mds_results = ({} for i in range(3))
-
-    if ((analysis_type=='pca') | (analysis_type=='all')):
-        res = cortical_results[-1][-1]
-        samples_res = res['samples_res']
-        pca_results = analyze_dim_red(args, res, 'pca', n_components=3)
-        # mds_results = analyze_dim_red(args, res, 'mds', n_components=2)
-        # tsne_results = analyze_dim_red(args, res, 'tsne', n_components=2)
-        
-        pca_results['grid_locations']  = locs
-        pca_results['samples_res']  = samples_res
-        # mds_results['grid_locations']  = locs
-        # mds_results['samples_res']  = samples_res
-        # tsne_results['grid_locations'] = locs
-        # tsne_results['samples_res']  = samples_res
-    
-    for run in range(args.nruns_cortical):
-        r_hidd, p_val_hidd, r_embed, p_val_embed = ([] for i in range(4))
-        ratio_hidd, ratio_embed = ([] for i in range(2))
-        t_stat_embed, t_p_val_embed, t_stat_hidd, t_p_val_hidd \
-            = ([] for i in range(4))
-        p_val_cat_reg, t_val_cat_reg, param_cat_reg, bse_cat_reg, \
-            y_cat_reg, y_hat_E_cat_reg = ([] for i in range(6))
-        p_val_con_reg, t_val_con_reg, param_con_reg, bse_con_reg, \
-            y_con_reg, y_hat_E_con_reg  = ([] for i in range(6))
-        p_val_exc_reg, t_val_exc_reg, param_exc_reg, y_exc_reg, \
-            y_hat_E_exc_reg, bse_exc_reg  = ([] for i in range(6))
-        p_val_1D_reg, t_val_1D_reg, param_1D_reg, y_1D_reg, \
-            y_hat_E_1D_reg, bse_1D_reg  = ([] for i in range(6))
-        cong_embed_dist, incong_embed_dist, cong_hidd_dist, \
-             incong_hidd_dist = ([] for i in range(4))
-        embed_dist, hidd_dist, grid_dist, grid_angle \
-            = ([] for i in range(4))
-        proportion_result = [[] for i in range(4)]
-        
-        for cp in range(checkpoints):
-            # load the results
-            cortical_res = cortical_results[run][cp]
-            dist_results = calc_dist(cortical_res, test_data)
-            dist_ctx_results = calc_dist_ctx(cortical_res, test_data, args)
-            dist_c_inc_results = hist_data(dist_results) 
-            # distance results
-            embed_dist.append(dist_results['embed_dists'])
-            hidd_dist.append(dist_results['hidd_dists'])
-            grid_dist.append(dist_results['grid_dists'])
-            grid_angle.append(dist_results['angle_results']['grid_angles'])
-            cong_embed_dist.append(dist_c_inc_results['cong_embed_dist'])
-            incong_embed_dist.append(dist_c_inc_results['incong_embed_dist'])
-            cong_hidd_dist.append(dist_c_inc_results['cong_hidd_dist'])
-            incong_hidd_dist.append(dist_c_inc_results['incong_hidd_dist'])
-
-            # ratio analysis 
-            if ((analysis_type=='ratio') | (analysis_type=='all')):
-                ratio_results = calc_ratio(dist_results)
-                # embeddings
-                ratio_embed.append(ratio_results['ratio_embed'])
-                # hiddens
-                ratio_hidd.append(ratio_results['ratio_hidd'])
-
-            # t-test analysis
-            if ((analysis_type=='ttest') | (analysis_type=='all')):
-                ttest_results = analyze_ttest(dist_results)                
-                t_stat_embed.append(ttest_results['t_stat_embed'])
-                t_p_val_embed.append(ttest_results['t_p_val_embed'])
-                t_stat_hidd.append(ttest_results['t_stat_hidd'])
-                t_p_val_hidd.append(ttest_results['t_p_val_hidd'])
-
-            # corretion analysis
-            if ((analysis_type=='corr') | (analysis_type=='all')):
-                corr_results = analyze_corr(dist_results)
-                # embeddings
-                r_embed.append(corr_results['r_embed'])
-                p_val_embed.append(corr_results['p_val_embed'])
-                # hiddens
-                r_hidd.append(corr_results['r_hidd'])
-                p_val_hidd.append(corr_results['p_val_hidd'])
-            # proportion analysis
-            if ((analysis_type=='proportions') | (analysis_type=='all')):
-                prop_res = proportions(cortical_res)
-                proportion_result[0].append(prop_res['hiddens_ctxs'])
-                proportion_result[1].append(prop_res['p_pies'])
-                proportion_result[2].append(prop_res['ps'])
-                proportion_result[3].append(prop_res['n'])
-
-            # regression analysis
-            if ((analysis_type=='regs') | (analysis_type=='all')):
-                reg_results = analyze_regression(dist_results)
-                # categorical
-                cat_reg = reg_results['cat_reg']
-                p_val_cat_reg.append(cat_reg['p_val'])
-                t_val_cat_reg.append(cat_reg['t_val'])
-                param_cat_reg.append(cat_reg['param'])
-                y_cat_reg.append(cat_reg['y'])
-                y_hat_E_cat_reg.append(cat_reg['y_hat_E'])
-                bse_cat_reg.append(cat_reg['bse'])
-                # conitnuous
-                con_reg = reg_results['con_reg']
-                p_val_con_reg.append(con_reg['p_val'])
-                t_val_con_reg.append(con_reg['t_val'])
-                param_con_reg.append(con_reg['param'])
-                y_con_reg.append(con_reg['y'])
-                y_hat_E_con_reg.append(con_reg['y_hat_E'])
-                bse_con_reg.append(con_reg['bse'])
-                # Excluded - Regression (do reg after removing each state)
-                exc_reg = analyze_regression_exc(dist_results, test_data)
-                p_val_exc_reg.append(exc_reg['p_vals'])
-                t_val_exc_reg.append(exc_reg['t_vals'])
-                param_exc_reg.append(exc_reg['params'])
-                y_exc_reg.append(exc_reg['ys'])
-                y_hat_E_exc_reg.append(exc_reg['y_hat_Es'])
-                bse_exc_reg.append(exc_reg['bses'])
-                # Including 1D rank difference in the model
-                oneD_reg = analyze_regression_1D(dist_ctx_results)
-                oneD_reg = oneD_reg['cat_reg']
-                p_val_1D_reg.append(oneD_reg['p_val'])
-                t_val_1D_reg.append(oneD_reg['t_val'])
-                param_1D_reg.append(oneD_reg['param'])
-                y_1D_reg.append(oneD_reg['y'])
-                y_hat_E_1D_reg.append(oneD_reg['y_hat_E'])
-                bse_1D_reg.append(oneD_reg['bse'])
-
-        if ((analysis_type=='proportions') | (analysis_type=='all')):
-            proportion_results[run].append(proportion_result)
-        if ((analysis_type=='corr') | (analysis_type=='all')):
-            r_hidds.append(r_hidd)
-            p_val_hidds.append(p_val_hidd)
-            r_embeds.append(r_embed)
-            p_val_embeds.append(p_val_embed)
-        if ((analysis_type=='ratio') | (analysis_type=='all')):
-            ratio_hidds.append(ratio_hidd)
-            ratio_embeds.append(ratio_embed)
-        if ((analysis_type=='ttest') | (analysis_type=='all')):
-            t_stat_embeds.append(t_stat_embed)
-            t_p_val_embeds.append(t_p_val_embed)
-            t_stat_hidds.append(t_stat_hidd)
-            t_p_val_hidds.append(t_p_val_hidd)
-        if ((analysis_type=='regs') | (analysis_type=='all')):
-            p_val_cat_regs.append(p_val_cat_reg)
-            t_val_cat_regs.append(t_val_cat_reg)
-            param_cat_regs.append(param_cat_reg)
-            y_cat_regs.append(y_cat_reg)
-            y_hat_E_cat_regs.append(y_hat_E_cat_reg)
-            bse_cat_regs.append(bse_cat_reg)
-            p_val_con_regs.append(p_val_con_reg)
-            t_val_con_regs.append(t_val_con_reg)
-            param_con_regs.append(param_con_reg)
-            y_con_regs.append(y_con_reg)
-            y_hat_E_con_regs.append(y_hat_E_con_reg)
-            bse_con_regs.append(bse_con_reg)
-            p_val_exc_regs.append(p_val_exc_reg)
-            t_val_exc_regs.append(t_val_exc_reg)
-            param_exc_regs.append(param_exc_reg)
-            y_exc_regs.append(y_exc_reg)
-            y_hat_E_exc_regs.append(y_hat_E_exc_reg)
-            bse_exc_regs.append(bse_exc_reg)
-            p_val_1D_regs.append(p_val_1D_reg)
-            t_val_1D_regs.append(t_val_1D_reg)
-            param_1D_regs.append(param_1D_reg)
-            y_1D_regs.append(y_1D_reg)
-            y_hat_E_1D_regs.append(y_hat_E_1D_reg)
-            bse_1D_regs.append(bse_1D_reg)    
-        cong_embed_dists.append(cong_embed_dist)
-        incong_embed_dists.append(incong_embed_dist)
-        cong_hidd_dists.append(cong_hidd_dist)
-        incong_hidd_dists.append(incong_hidd_dist)
-        embed_dists.append(embed_dist)
-        hidd_dists.append(hidd_dist)
-        grid_dists.append(grid_dist)
-        grid_angles.append(grid_angle)
-
-    cong_embed_dists = np.array(cong_embed_dists)
-    incong_embed_dists = np.array(incong_embed_dists)
-    cong_hidd_dists = np.array(cong_hidd_dists)
-    incong_hidd_dists = np.array(incong_hidd_dists)
-    embed_dists = np.array(embed_dists)
-    hidd_dists = np.array(hidd_dists)
-    grid_dists = np.array(grid_dists)
-    grid_angles = np.array(grid_angles)
-    dist_results = {'embed_dists': embed_dists, 'hidd_dists': hidd_dists,
-                    'grid_dists': grid_dists, 'grid_angles': grid_angles,
-                    'cong_embed_dists': cong_embed_dists, 'incong_embed_dists': incong_embed_dists,
-                    'cong_hidd_dists': cong_hidd_dists, 'incong_hidd_dists': incong_hidd_dists}
-
-    if ((analysis_type=='corr') | (analysis_type=='all')):
-        r_hidds = np.array(r_hidds)
-        p_val_hidds = np.array(p_val_hidds)
-        r_embeds = np.array(r_embeds)
-        p_val_embeds = np.array(p_val_embeds)
-        corr_results = {'r_embeds': r_embeds, 
-                        'p_val_embeds': p_val_embeds,
-                        'r_hidds': r_hidds, 
-                        'p_val_hidds': p_val_hidds}
-        results = {'corr_results': corr_results, 
-                   'dist_results': dist_results}
-        with open('../results/'+'corr_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    if ((analysis_type=='ratio') | (analysis_type=='all')):
-        ratio_hidds = np.array(ratio_hidds)
-        ratio_embeds = np.array(ratio_embeds)
-        ratio_results = {'ratio_embeds': ratio_embeds, 
-                         'ratio_hidds': ratio_hidds}
-        results = {'ratio_results': ratio_results, 
-                   'dist_results': dist_results}
-        with open('../results/'+'ratio_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    if ((analysis_type=='ttest') | (analysis_type=='all')):
-        t_stat_embeds = np.array(t_stat_embeds)
-        t_p_val_embeds = np.array(t_p_val_embeds)
-        t_stat_hidds = np.array(t_stat_hidds)
-        t_p_val_hidds = np.array(t_p_val_hidds)
-        ttest_results = {'t_stat_hidds': t_stat_hidds,
-                         't_p_val_hidds': t_p_val_hidds,
-                         't_stat_embeds': t_stat_embeds, 
-                         't_p_val_embeds': t_p_val_embeds}
-        results = {'ttest_results': ttest_results,
-                   'dist_results': dist_results}
-        with open('../results/'+'ttest_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    if ((analysis_type=='pca') | (analysis_type=='all')): 
-        results = {'pca_results': pca_results,
-                   'dist_results': dist_results}
-        with open('../results/'+'pca_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    if ((analysis_type=='proportions') | (analysis_type=='all')): 
-        prop_results={}
-        prop_results['hiddens_ctxs'] = np.asarray([r[0][0] for r in proportion_results])
-        prop_results['p_pies'] = np.asarray([r[0][1] for r in proportion_results])
-        prop_results['ps'] = np.asarray([r[0][2] for r in proportion_results])
-        prop_results['n'] = np.asarray([r[0][3] for r in proportion_results])
-        results = {'proportion_results': prop_results,
-                   'dist_results': dist_results}
-        with open('../results/'+'proportion_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-
-    if ((analysis_type=='regs') | (analysis_type=='all')):
-        p_val_cat_regs = np.array(p_val_cat_regs)
-        t_val_cat_regs = np.array(t_val_cat_regs)
-        param_cat_regs = np.array(param_cat_regs)
-        y_cat_regs = np.array(y_cat_regs)
-        y_hat_E_cat_regs = np.array(y_hat_E_cat_regs)
-        bse_cat_regs = np.array(bse_cat_regs)
-        p_val_con_regs = np.array(p_val_con_regs)
-        t_val_con_regs = np.array(t_val_con_regs)
-        param_con_regs = np.array(param_con_regs)
-        y_con_regs = np.array(y_con_regs)
-        y_hat_E_con_regs = np.array(y_hat_E_con_regs)
-        bse_con_regs = np.array(bse_con_regs)
-        p_val_exc_regs = np.array(p_val_exc_regs)
-        t_val_exc_regs = np.array(t_val_exc_regs)
-        param_exc_regs = np.array(param_exc_regs)
-        y_exc_regs = np.array(y_exc_regs)
-        y_hat_E_exc_regs = np.array(y_hat_E_exc_regs)
-        bse_exc_regs = np.array(bse_exc_regs)
-        p_val_1D_regs = np.array(p_val_1D_regs)
-        t_val_1D_regs = np.array(t_val_1D_regs)
-        param_1D_regs = np.array(param_1D_regs)
-        y_1D_regs = np.array(y_1D_regs)
-        y_hat_E_1D_regs = np.array(y_hat_E_1D_regs)
-        bse_1D_regs = np.array(bse_1D_reg)
-        cat_regs = {'p_vals': p_val_cat_regs,
-                    't_vals': t_val_cat_regs,
-                    'params': param_cat_regs,
-                    'ys': y_cat_regs,
-                    'y_hat_Es': y_hat_E_cat_regs,
-                    'bses': bse_cat_regs}
-        con_regs = {'p_vals': p_val_con_regs,
-                    't_vals': t_val_con_regs,
-                    'params': param_con_regs,
-                    'ys': y_con_regs,
-                    'y_hat_Es': y_hat_E_con_regs,
-                    'bses': bse_con_regs}
-        exc_regs = {'p_vals': p_val_exc_regs,
-                    't_vals': t_val_exc_regs,
-                    'params': param_exc_regs,
-                    'ys': y_exc_regs,
-                    'y_hat_Es': y_hat_E_exc_regs,
-                    'bses': bse_exc_regs}
-        oneD_regs = {'p_vals': p_val_1D_regs,
-                    't_vals': t_val_1D_regs,
-                    'params': param_1D_regs,
-                    'ys': y_1D_regs,
-                    'y_hat_Es': y_hat_E_1D_regs,
-                    'bses': bse_1D_regs}
-        reg_results = {'cat_regs': cat_regs,
-                       'con_regs': con_regs,
-                       'exc_regs': exc_regs,
-                       'oneD_regs': oneD_regs}
-        results = {'dist_results': dist_results,
-                   'reg_results': reg_results}
-        with open('../results/'+'reg_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    
-    
-
-    return results
-
-
-    # do the analysis over multiple runs
 def analyze_cortical_mruns(cortical_results, test_data, args):
     n_states = test_data.n_states 
     loc2idx = test_data.loc2idx 
@@ -1201,7 +1047,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
     if ((analysis_type=='pca') | (analysis_type=='all')):
         res = cortical_results[-1][-1]
         samples_res = res['samples_res']
-        pca_results = analyze_dim_red(args, res, 'pca', n_components=3)
+        pca_results = analyze_dim_red(args, res, 'pca', n_components=2)
         # mds_results = analyze_dim_red(args, res, 'mds', n_components=2)
         # tsne_results = analyze_dim_red(args, res, 'tsne', n_components=2)
         
@@ -1219,6 +1065,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
         dist_res = [[] for i in range(8)]
         ttest_res = [[] for i in range(4)]
         reg_con_res = [[] for i in range(6)]
+        # reg_con_res = {}
         reg_cat_res = [[] for i in range(6)]
         reg_exc_res = [[] for i in range(6)]
         reg_1D_res = [[] for i in range(6)]
@@ -1227,7 +1074,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
         for cp in range(checkpoints):
             # load the results
             cortical_result = cortical_results[run][cp]
-            dist_result = calc_dist(cortical_result, test_data)
+            dist_result = calc_dist(cortical_result, test_data, args)
             dist_ctx_result = calc_dist_ctx(cortical_result, test_data, args)
             dist_c_inc_result = hist_data(dist_result) 
             # distance results
@@ -1243,18 +1090,18 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
             # ratio analysis 
             if ((analysis_type=='ratio') | (analysis_type=='all')):
                 ratio_result = calc_ratio(dist_result)
-                ratio_res.append(ratio_result['ratio_embed'])
-                ratio_res.append(ratio_result['ratio_hidd'])
+                ratio_res[0].append(ratio_result['ratio_embed'])
+                ratio_res[1].append(ratio_result['ratio_hidd'])
             # t-test analysis
             if ((analysis_type=='ttest') | (analysis_type=='all')):
-                ttest_result = analyze_ttest(dist_result)                
+                ttest_result = analyze_ttest(args, dist_result)                
                 ttest_res[0].append(ttest_result['t_stat_embed'])
                 ttest_res[1].append(ttest_result['t_p_val_embed'])
                 ttest_res[2].append(ttest_result['t_stat_hidd'])
                 ttest_res[3].append(ttest_result['t_p_val_hidd'])
             # corretion analysis
             if ((analysis_type=='corr') | (analysis_type=='all')):
-                corr_result = analyze_corr(dist_result)
+                corr_result = analyze_corr(args, dist_result)
                 corr_res[0].append(corr_result['r_embed'])
                 corr_res[1].append(corr_result['p_val_embed'])
                 corr_res[2].append(corr_result['r_hidd'])
@@ -1268,7 +1115,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
                 proportion_res[3].append(prop_result['n'])
             # regression analysis
             if ((analysis_type=='regs') | (analysis_type=='all')):
-                reg_result = analyze_regression(dist_result)
+                reg_result = analyze_regression(args, dist_result)
                 # categorical
                 cat_reg = reg_result['cat_reg']
                 reg_cat_res[0].append(cat_reg['p_val'])
@@ -1285,8 +1132,9 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
                 reg_con_res[3].append(con_reg['y'])
                 reg_con_res[4].append(con_reg['y_hat_E'])
                 reg_con_res[5].append(con_reg['bse'])
+                # reg_con_res['p_val'] = 
                 # Excluded - Regression (do reg after removing each state)
-                exc_reg = analyze_regression_exc(dist_result, test_data)
+                exc_reg = analyze_regression_exc(args, dist_result, test_data)
                 reg_exc_res[0].append(exc_reg['p_vals'])
                 reg_exc_res[1].append(exc_reg['t_vals'])
                 reg_exc_res[2].append(exc_reg['params'])
@@ -1294,7 +1142,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
                 reg_exc_res[4].append(exc_reg['y_hat_Es'])
                 reg_exc_res[5].append(exc_reg['bses'])
                 # Including 1D rank difference in the model
-                oneD_reg = analyze_regression_1D(dist_ctx_result)
+                oneD_reg = analyze_regression_1D(args, dist_ctx_result)
                 oneD_reg = oneD_reg['cat_reg']
                 reg_1D_res[0].append(oneD_reg['p_val'])
                 reg_1D_res[1].append(oneD_reg['t_val'])
@@ -1353,10 +1201,10 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
             pickle.dump(results, f)
     if ((analysis_type=='ttest') | (analysis_type=='all')):
         ttest_results = {}
-        ttest_results['t_stat_hidds'] = np.asarray([r[0][0] for r in ttest_ress])
-        ttest_results['t_p_val_hidds'] = np.asarray([r[0][1] for r in ttest_ress])
-        ttest_results['t_stat_embeds'] = np.asarray([r[0][2] for r in ttest_ress])
-        ttest_results['t_p_val_embeds'] = np.asarray([r[0][3] for r in ttest_ress])
+        ttest_results['t_stat_embed'] = np.asarray([r[0][0] for r in ttest_ress])
+        ttest_results['t_p_val_embed'] = np.asarray([r[0][1] for r in ttest_ress])
+        ttest_results['t_stat_hidd'] = np.asarray([r[0][2] for r in ttest_ress])
+        ttest_results['t_p_val_hidd'] = np.asarray([r[0][3] for r in ttest_ress])
         results = {'ttest_results': ttest_results,
                    'dist_results': dist_results}
         with open('../results/'+'ttest_'+args.out_file, 'wb') as f:
@@ -1385,7 +1233,7 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
         with open('../results/'+'test_seq_'+args.out_file, 'wb') as f:
             pickle.dump(results, f)
     if ((analysis_type=='regs') | (analysis_type=='all')):
-        reg_ress = np.asarray(reg_ress).squeeze()
+        reg_ress = np.asarray(reg_ress).squeeze(1)
 
         cat_regs = {}
         cat_regs['p_vals'] = reg_ress[:,0,0,:]
@@ -1425,3 +1273,333 @@ def analyze_cortical_mruns(cortical_results, test_data, args):
             pickle.dump(results, f)
     
     return results
+
+
+
+
+# def analyze_cortical_mruns1(cortical_results, test_data, args):
+#     n_states = test_data.n_states 
+#     loc2idx = test_data.loc2idx 
+#     idx2loc = {idx:loc for loc, idx in loc2idx.items()}
+#     idxs = [idx for idx in range(n_states)]
+#     locs = [idx2loc[idx] for idx in idxs]
+#     analysis_type = args.analysis_type
+
+#     checkpoints = len(cortical_results[0])
+#     r_hidds, p_val_hidds, r_embeds, p_val_embeds = ([] for i in range(4))
+#     ratio_hidds, ratio_embeds = ([] for i in range(2))
+#     t_stat_embeds, t_p_val_embeds, t_stat_hidds, t_p_val_hidds = \
+#         ([] for i in range(4))
+#     p_val_cat_regs, t_val_cat_regs, param_cat_regs, bse_cat_regs, \
+#         y_cat_regs, y_hat_E_cat_regs = ([] for i in range(6))
+#     p_val_con_regs, t_val_con_regs, param_con_regs, bse_con_regs, \
+#         y_con_regs, y_hat_E_con_regs = ([] for i in range(6))
+#     p_val_exc_regs, t_val_exc_regs, param_exc_regs, y_exc_regs, \
+#             y_hat_E_exc_regs, bse_exc_regs = ([] for i in range(6))
+#     p_val_1D_regs, t_val_1D_regs, param_1D_regs, y_1D_regs, \
+#             y_hat_E_1D_regs, bse_1D_regs  = ([] for i in range(6))
+#     cong_embed_dists, incong_embed_dists, cong_hidd_dists, \
+#         incong_hidd_dists = ([] for i in range(4))
+#     embed_dists, hidd_dists, grid_dists,  grid_angles \
+#         = ([] for i in range(4))
+#     proportion_results = [[] for i in range(args.nruns_cortical)]
+
+#     corr_results, reg_results, ttest_results, ratio_results, = ({} for i in range(4))
+#     pca_results, tsne_results, mds_results = ({} for i in range(3))
+
+#     if ((analysis_type=='pca') | (analysis_type=='all')):
+#         res = cortical_results[-1][-1]
+#         samples_res = res['samples_res']
+#         pca_results = analyze_dim_red(args, res, 'pca', n_components=3)
+#         # mds_results = analyze_dim_red(args, res, 'mds', n_components=2)
+#         # tsne_results = analyze_dim_red(args, res, 'tsne', n_components=2)
+        
+#         pca_results['grid_locations']  = locs
+#         pca_results['samples_res']  = samples_res
+#         # mds_results['grid_locations']  = locs
+#         # mds_results['samples_res']  = samples_res
+#         # tsne_results['grid_locations'] = locs
+#         # tsne_results['samples_res']  = samples_res
+    
+#     for run in range(args.nruns_cortical):
+#         r_hidd, p_val_hidd, r_embed, p_val_embed = ([] for i in range(4))
+#         ratio_hidd, ratio_embed = ([] for i in range(2))
+#         t_stat_embed, t_p_val_embed, t_stat_hidd, t_p_val_hidd \
+#             = ([] for i in range(4))
+#         p_val_cat_reg, t_val_cat_reg, param_cat_reg, bse_cat_reg, \
+#             y_cat_reg, y_hat_E_cat_reg = ([] for i in range(6))
+#         p_val_con_reg, t_val_con_reg, param_con_reg, bse_con_reg, \
+#             y_con_reg, y_hat_E_con_reg  = ([] for i in range(6))
+#         p_val_exc_reg, t_val_exc_reg, param_exc_reg, y_exc_reg, \
+#             y_hat_E_exc_reg, bse_exc_reg  = ([] for i in range(6))
+#         p_val_1D_reg, t_val_1D_reg, param_1D_reg, y_1D_reg, \
+#             y_hat_E_1D_reg, bse_1D_reg  = ([] for i in range(6))
+#         cong_embed_dist, incong_embed_dist, cong_hidd_dist, \
+#              incong_hidd_dist = ([] for i in range(4))
+#         embed_dist, hidd_dist, grid_dist, grid_angle \
+#             = ([] for i in range(4))
+#         proportion_result = [[] for i in range(4)]
+        
+#         for cp in range(checkpoints):
+#             # load the results
+#             cortical_res = cortical_results[run][cp]
+#             dist_results = calc_dist(cortical_res, test_data, args)
+#             dist_ctx_results = calc_dist_ctx(cortical_res, test_data, args)
+#             dist_c_inc_results = hist_data(dist_results) 
+#             # distance results
+#             embed_dist.append(dist_results['embed_dists'])
+#             hidd_dist.append(dist_results['hidd_dists'])
+#             grid_dist.append(dist_results['grid_dists'])
+#             grid_angle.append(dist_results['angle_results']['grid_angles'])
+#             cong_embed_dist.append(dist_c_inc_results['cong_embed_dist'])
+#             incong_embed_dist.append(dist_c_inc_results['incong_embed_dist'])
+#             cong_hidd_dist.append(dist_c_inc_results['cong_hidd_dist'])
+#             incong_hidd_dist.append(dist_c_inc_results['incong_hidd_dist'])
+
+#             # ratio analysis 
+#             if ((analysis_type=='ratio') | (analysis_type=='all')):
+#                 ratio_results = calc_ratio(dist_results)
+#                 # embeddings
+#                 ratio_embed.append(ratio_results['ratio_embed'])
+#                 # hiddens
+#                 ratio_hidd.append(ratio_results['ratio_hidd'])
+
+#             # t-test analysis
+#             if ((analysis_type=='ttest') | (analysis_type=='all')):
+#                 ttest_results = analyze_ttest(dist_results)                
+#                 t_stat_embed.append(ttest_results['t_stat_embed'])
+#                 t_p_val_embed.append(ttest_results['t_p_val_embed'])
+#                 t_stat_hidd.append(ttest_results['t_stat_hidd'])
+#                 t_p_val_hidd.append(ttest_results['t_p_val_hidd'])
+
+#             # corretion analysis
+#             if ((analysis_type=='corr') | (analysis_type=='all')):
+#                 corr_results = analyze_corr(args, dist_results)
+#                 # embeddings
+#                 r_embed.append(corr_results['r_embed'])
+#                 p_val_embed.append(corr_results['p_val_embed'])
+#                 # hiddens
+#                 r_hidd.append(corr_results['r_hidd'])
+#                 p_val_hidd.append(corr_results['p_val_hidd'])
+#             # proportion analysis
+#             if ((analysis_type=='proportions') | (analysis_type=='all')):
+#                 prop_res = proportions(cortical_res)
+#                 proportion_result[0].append(prop_res['hiddens_ctxs'])
+#                 proportion_result[1].append(prop_res['p_pies'])
+#                 proportion_result[2].append(prop_res['ps'])
+#                 proportion_result[3].append(prop_res['n'])
+
+#             # regression analysis
+#             if ((analysis_type=='regs') | (analysis_type=='all')):
+#                 reg_results = analyze_regression(dist_results)
+#                 # categorical
+#                 cat_reg = reg_results['cat_reg']
+#                 p_val_cat_reg.append(cat_reg['p_val'])
+#                 t_val_cat_reg.append(cat_reg['t_val'])
+#                 param_cat_reg.append(cat_reg['param'])
+#                 y_cat_reg.append(cat_reg['y'])
+#                 y_hat_E_cat_reg.append(cat_reg['y_hat_E'])
+#                 bse_cat_reg.append(cat_reg['bse'])
+#                 # conitnuous
+#                 con_reg = reg_results['con_reg']
+#                 p_val_con_reg.append(con_reg['p_val'])
+#                 t_val_con_reg.append(con_reg['t_val'])
+#                 param_con_reg.append(con_reg['param'])
+#                 y_con_reg.append(con_reg['y'])
+#                 y_hat_E_con_reg.append(con_reg['y_hat_E'])
+#                 bse_con_reg.append(con_reg['bse'])
+#                 # Excluded - Regression (do reg after removing each state)
+#                 exc_reg = analyze_regression_exc(dist_results, test_data)
+#                 p_val_exc_reg.append(exc_reg['p_vals'])
+#                 t_val_exc_reg.append(exc_reg['t_vals'])
+#                 param_exc_reg.append(exc_reg['params'])
+#                 y_exc_reg.append(exc_reg['ys'])
+#                 y_hat_E_exc_reg.append(exc_reg['y_hat_Es'])
+#                 bse_exc_reg.append(exc_reg['bses'])
+#                 # Including 1D rank difference in the model
+#                 oneD_reg = analyze_regression_1D(dist_ctx_results)
+#                 oneD_reg = oneD_reg['cat_reg']
+#                 p_val_1D_reg.append(oneD_reg['p_val'])
+#                 t_val_1D_reg.append(oneD_reg['t_val'])
+#                 param_1D_reg.append(oneD_reg['param'])
+#                 y_1D_reg.append(oneD_reg['y'])
+#                 y_hat_E_1D_reg.append(oneD_reg['y_hat_E'])
+#                 bse_1D_reg.append(oneD_reg['bse'])
+
+#         if ((analysis_type=='proportions') | (analysis_type=='all')):
+#             proportion_results[run].append(proportion_result)
+#         if ((analysis_type=='corr') | (analysis_type=='all')):
+#             r_hidds.append(r_hidd)
+#             p_val_hidds.append(p_val_hidd)
+#             r_embeds.append(r_embed)
+#             p_val_embeds.append(p_val_embed)
+#         if ((analysis_type=='ratio') | (analysis_type=='all')):
+#             ratio_hidds.append(ratio_hidd)
+#             ratio_embeds.append(ratio_embed)
+#         if ((analysis_type=='ttest') | (analysis_type=='all')):
+#             t_stat_embeds.append(t_stat_embed)
+#             t_p_val_embeds.append(t_p_val_embed)
+#             t_stat_hidds.append(t_stat_hidd)
+#             t_p_val_hidds.append(t_p_val_hidd)
+#         if ((analysis_type=='regs') | (analysis_type=='all')):
+#             p_val_cat_regs.append(p_val_cat_reg)
+#             t_val_cat_regs.append(t_val_cat_reg)
+#             param_cat_regs.append(param_cat_reg)
+#             y_cat_regs.append(y_cat_reg)
+#             y_hat_E_cat_regs.append(y_hat_E_cat_reg)
+#             bse_cat_regs.append(bse_cat_reg)
+#             p_val_con_regs.append(p_val_con_reg)
+#             t_val_con_regs.append(t_val_con_reg)
+#             param_con_regs.append(param_con_reg)
+#             y_con_regs.append(y_con_reg)
+#             y_hat_E_con_regs.append(y_hat_E_con_reg)
+#             bse_con_regs.append(bse_con_reg)
+#             p_val_exc_regs.append(p_val_exc_reg)
+#             t_val_exc_regs.append(t_val_exc_reg)
+#             param_exc_regs.append(param_exc_reg)
+#             y_exc_regs.append(y_exc_reg)
+#             y_hat_E_exc_regs.append(y_hat_E_exc_reg)
+#             bse_exc_regs.append(bse_exc_reg)
+#             p_val_1D_regs.append(p_val_1D_reg)
+#             t_val_1D_regs.append(t_val_1D_reg)
+#             param_1D_regs.append(param_1D_reg)
+#             y_1D_regs.append(y_1D_reg)
+#             y_hat_E_1D_regs.append(y_hat_E_1D_reg)
+#             bse_1D_regs.append(bse_1D_reg)    
+#         cong_embed_dists.append(cong_embed_dist)
+#         incong_embed_dists.append(incong_embed_dist)
+#         cong_hidd_dists.append(cong_hidd_dist)
+#         incong_hidd_dists.append(incong_hidd_dist)
+#         embed_dists.append(embed_dist)
+#         hidd_dists.append(hidd_dist)
+#         grid_dists.append(grid_dist)
+#         grid_angles.append(grid_angle)
+
+#     cong_embed_dists = np.array(cong_embed_dists)
+#     incong_embed_dists = np.array(incong_embed_dists)
+#     cong_hidd_dists = np.array(cong_hidd_dists)
+#     incong_hidd_dists = np.array(incong_hidd_dists)
+#     embed_dists = np.array(embed_dists)
+#     hidd_dists = np.array(hidd_dists)
+#     grid_dists = np.array(grid_dists)
+#     grid_angles = np.array(grid_angles)
+#     dist_results = {'embed_dists': embed_dists, 'hidd_dists': hidd_dists,
+#                     'grid_dists': grid_dists, 'grid_angles': grid_angles,
+#                     'cong_embed_dists': cong_embed_dists, 'incong_embed_dists': incong_embed_dists,
+#                     'cong_hidd_dists': cong_hidd_dists, 'incong_hidd_dists': incong_hidd_dists}
+
+#     if ((analysis_type=='corr') | (analysis_type=='all')):
+#         r_hidds = np.array(r_hidds)
+#         p_val_hidds = np.array(p_val_hidds)
+#         r_embeds = np.array(r_embeds)
+#         p_val_embeds = np.array(p_val_embeds)
+#         corr_results = {'r_embeds': r_embeds, 
+#                         'p_val_embeds': p_val_embeds,
+#                         'r_hidds': r_hidds, 
+#                         'p_val_hidds': p_val_hidds}
+#         results = {'corr_results': corr_results, 
+#                    'dist_results': dist_results}
+#         with open('../results/'+'corr_'+args.out_file, 'wb') as f:
+#             pickle.dump(results, f)
+#     if ((analysis_type=='ratio') | (analysis_type=='all')):
+#         ratio_hidds = np.array(ratio_hidds)
+#         ratio_embeds = np.array(ratio_embeds)
+#         ratio_results = {'ratio_embeds': ratio_embeds, 
+#                          'ratio_hidds': ratio_hidds}
+#         results = {'ratio_results': ratio_results, 
+#                    'dist_results': dist_results}
+#         with open('../results/'+'ratio_'+args.out_file, 'wb') as f:
+#             pickle.dump(results, f)
+#     if ((analysis_type=='ttest') | (analysis_type=='all')):
+#         t_stat_embeds = np.array(t_stat_embeds)
+#         t_p_val_embeds = np.array(t_p_val_embeds)
+#         t_stat_hidds = np.array(t_stat_hidds)
+#         t_p_val_hidds = np.array(t_p_val_hidds)
+#         ttest_results = {'t_stat_hidds': t_stat_hidds,
+#                          't_p_val_hidds': t_p_val_hidds,
+#                          't_stat_embeds': t_stat_embeds, 
+#                          't_p_val_embeds': t_p_val_embeds}
+#         results = {'ttest_results': ttest_results,
+#                    'dist_results': dist_results}
+#         with open('../results/'+'ttest_'+args.out_file, 'wb') as f:
+#             pickle.dump(results, f)
+#     if ((analysis_type=='pca') | (analysis_type=='all')): 
+#         results = {'pca_results': pca_results,
+#                    'dist_results': dist_results}
+#         with open('../results/'+'pca_'+args.out_file, 'wb') as f:
+#             pickle.dump(results, f)
+#     if ((analysis_type=='proportions') | (analysis_type=='all')): 
+#         prop_results={}
+#         prop_results['hiddens_ctxs'] = np.asarray([r[0][0] for r in proportion_results])
+#         prop_results['p_pies'] = np.asarray([r[0][1] for r in proportion_results])
+#         prop_results['ps'] = np.asarray([r[0][2] for r in proportion_results])
+#         prop_results['n'] = np.asarray([r[0][3] for r in proportion_results])
+#         results = {'proportion_results': prop_results,
+#                    'dist_results': dist_results}
+#         with open('../results/'+'proportion_'+args.out_file, 'wb') as f:
+#             pickle.dump(results, f)
+
+#     if ((analysis_type=='regs') | (analysis_type=='all')):
+#         p_val_cat_regs = np.array(p_val_cat_regs)
+#         t_val_cat_regs = np.array(t_val_cat_regs)
+#         param_cat_regs = np.array(param_cat_regs)
+#         y_cat_regs = np.array(y_cat_regs)
+#         y_hat_E_cat_regs = np.array(y_hat_E_cat_regs)
+#         bse_cat_regs = np.array(bse_cat_regs)
+#         p_val_con_regs = np.array(p_val_con_regs)
+#         t_val_con_regs = np.array(t_val_con_regs)
+#         param_con_regs = np.array(param_con_regs)
+#         y_con_regs = np.array(y_con_regs)
+#         y_hat_E_con_regs = np.array(y_hat_E_con_regs)
+#         bse_con_regs = np.array(bse_con_regs)
+#         p_val_exc_regs = np.array(p_val_exc_regs)
+#         t_val_exc_regs = np.array(t_val_exc_regs)
+#         param_exc_regs = np.array(param_exc_regs)
+#         y_exc_regs = np.array(y_exc_regs)
+#         y_hat_E_exc_regs = np.array(y_hat_E_exc_regs)
+#         bse_exc_regs = np.array(bse_exc_regs)
+#         p_val_1D_regs = np.array(p_val_1D_regs)
+#         t_val_1D_regs = np.array(t_val_1D_regs)
+#         param_1D_regs = np.array(param_1D_regs)
+#         y_1D_regs = np.array(y_1D_regs)
+#         y_hat_E_1D_regs = np.array(y_hat_E_1D_regs)
+#         bse_1D_regs = np.array(bse_1D_reg)
+#         cat_regs = {'p_vals': p_val_cat_regs,
+#                     't_vals': t_val_cat_regs,
+#                     'params': param_cat_regs,
+#                     'ys': y_cat_regs,
+#                     'y_hat_Es': y_hat_E_cat_regs,
+#                     'bses': bse_cat_regs}
+#         con_regs = {'p_vals': p_val_con_regs,
+#                     't_vals': t_val_con_regs,
+#                     'params': param_con_regs,
+#                     'ys': y_con_regs,
+#                     'y_hat_Es': y_hat_E_con_regs,
+#                     'bses': bse_con_regs}
+#         exc_regs = {'p_vals': p_val_exc_regs,
+#                     't_vals': t_val_exc_regs,
+#                     'params': param_exc_regs,
+#                     'ys': y_exc_regs,
+#                     'y_hat_Es': y_hat_E_exc_regs,
+#                     'bses': bse_exc_regs}
+#         oneD_regs = {'p_vals': p_val_1D_regs,
+#                     't_vals': t_val_1D_regs,
+#                     'params': param_1D_regs,
+#                     'ys': y_1D_regs,
+#                     'y_hat_Es': y_hat_E_1D_regs,
+#                     'bses': bse_1D_regs}
+#         reg_results = {'cat_regs': cat_regs,
+#                        'con_regs': con_regs,
+#                        'exc_regs': exc_regs,
+#                        'oneD_regs': oneD_regs}
+#         results = {'dist_results': dist_results,
+#                    'reg_results': reg_results}
+#         with open('../results/'+'reg_'+args.out_file, 'wb') as f:
+#             pickle.dump(results, f)
+    
+    
+
+#     return results
+
+
+#     # do the analysis over multiple runs

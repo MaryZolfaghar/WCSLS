@@ -12,7 +12,10 @@ from models import EpisodicSystem, CorticalSystem, \
 from train import train
 from test import test
 from analyze import analyze_episodic, analyze_cortical, analyze_cortical_mruns
-#
+
+# To ignore printing all the RuntimeWarnings
+# Since, we are aware that we have "divide by NaN". 
+np.seterr(divide='ignore', invalid='ignore')
 
 parser = argparse.ArgumentParser()
 # Setup

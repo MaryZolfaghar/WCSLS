@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+# from torch.nn.modules.rnn import LSTMCell
 
 class MemoryLayer(nn.Module):
     def __init__(self, input_dim, memory_dim, model_dim, mlp_dim, dropout_p):
@@ -265,10 +266,13 @@ class RecurrentCorticalSystem(nn.Module):
             
         
         # MLP
+        # x[t]
         lstm_out, (h_n, c_n) = self.lstm(x)
         # lstm_out: [seq_length, batch, hidden_dim]
         # h: [1, batch, hidden_dim]
         # c: [1, batch, hidden_dim]
+        # for t in times:
+        #     LSTMCell()
         if self.analyze:
             lstm_out = lstm_out.permute(1,0,2)
             # lstm_out: [batch, seq_length, hidden_dim]
