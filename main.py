@@ -2,7 +2,6 @@ import argparse
 import torch 
 import torch.nn as nn
 import pickle
-import json
 import random
 import numpy as np 
 
@@ -11,7 +10,9 @@ from models import EpisodicSystem, CorticalSystem, \
                    RecurrentCorticalSystem, StepwiseCorticalSystem
 from train import train
 from test import test
-from analyze import analyze_episodic, analyze_cortical, analyze_cortical_mruns
+# from analyze import analyze_episodic, analyze_cortical, analyze_cortical_mruns
+from run_analyze import run_analyze
+from utils.analyze import *
 
 # To ignore printing all the RuntimeWarnings
 # Since, we are aware that we have "divide by NaN". 
@@ -50,7 +51,7 @@ parser.add_argument('--bs_cortical', type=int, default=32,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
                     help='Learning rate for cortical system')
-parser.add_argument('--nruns_cortical', type=int, default=2, # 20
+parser.add_argument('--nruns_cortical', type=int, default=1, # 20
                     help='Number of runs for cortical system')
 parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
@@ -247,7 +248,9 @@ def main(args):
     # cortical_system.analyze=True
     # cortical_analyze_acc, cortical_analyze_correct = test(meta, cortical_system, analyze_loader, args)
     # cortical_system.analyze=False
-    cortical_mrun_results = analyze_cortical_mruns(cortical_runs, test_data, args)
+
+    # cortical_mrun_results = analyze_cortical_mruns(cortical_runs, test_data, args)
+    cortical_mrun_results = run_analyze(args, test_data, cortical_runs)
     cortical_results = {'loss': cortical_train_losses,
                         'train_acc': cortical_train_acc,
                         'test_acc': cortical_test_acc,
@@ -263,12 +266,20 @@ def main(args):
     with open('../results/'+args.out_file, 'wb') as f:
         pickle.dump(results, f)
 
-    # with open('../results/'+'mruns_'+args.out_file, 'wb') as f:
-    #     pickle.dump(cortical_runs, f)
-    # print('done saving cortical_mruns')
-
 if __name__ == '__main__':
     args = parser.parse_args()
+    analysis_names = ['calc_dist_ctx', 'calc_dist', 'hist_data', 'calc_ratio', \
+                  'analyze_dim_red', 'analyze_ttest', 'analyze_corr', \
+                  'analyze_regression', 'analyze_regression_1D', \
+                  'analyze_regression_exc', 'analyze_test_seq']
+
+    analysis_funcs = [calc_dist_ctx, calc_dist, hist_data, calc_ratio, \
+                      analyze_dim_red, analyze_ttest, analyze_corr, \
+                      analyze_regression, analyze_regression_1D, \
+                      analyze_regression_exc, analyze_test_seq]
+    
+    args.analysis_names = analysis_names
+    args.analysis_funcs = analysis_funcs
     
     print(args)
     main(args)
