@@ -568,7 +568,7 @@ def analyze_dim_red(args, test_data, cortical_results, dist_results, method='pca
                    'ctx_hidd_2d': pca_2d_ctx_hidd,
                    'incong_cong_2d': pca_2d_incong_cong,
                    'grid_locations': locs,
-                   'samples_res': cortical_results['samples_res']}
+                   'samples_res': cortical_result['samples_res']}
     elif method == 'mds':
         # MDS
         mds = MDS(n_components=n_components)

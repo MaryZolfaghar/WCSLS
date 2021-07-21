@@ -268,18 +268,18 @@ def main(args):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    analysis_names = ['calc_dist_ctx', 'calc_dist', 'hist_data', 'calc_ratio', \
+    analysis_names = ['analyze_dim_red', 'hist_data', 'calc_ratio', \
                   'analyze_dim_red', 'analyze_ttest', 'analyze_corr', \
                   'analyze_regression', 'analyze_regression_1D', \
                   'analyze_regression_exc', 'analyze_test_seq']
 
-    analysis_funcs = [calc_dist_ctx, calc_dist, hist_data, calc_ratio, \
+    analysis_funcs = [analyze_dim_red, hist_data, calc_ratio, \
                       analyze_dim_red, analyze_ttest, analyze_corr, \
                       analyze_regression, analyze_regression_1D, \
                       analyze_regression_exc, analyze_test_seq]
     
     args.analysis_names = analysis_names
     args.analysis_funcs = analysis_funcs
-    
+
     print(args)
     main(args)
