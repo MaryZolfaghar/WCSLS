@@ -138,9 +138,9 @@ def analyze_cortical(model, test_data, analyze_loader, args):
         embeddings = np.concatenate(embeddings, axis=0) # [n_states, state_dim]
         for batch in analyze_loader:
             if args.cortical_task == 'face_task':
-                f1, f2, ctx, y, idx1, idx2 = batch
+                f1, f2, ctx, out, idx1, idx2 = batch
             elif args.cortical_task == 'wine_task':
-                f1, f2, ctx, y1, y2, idx1, idx2 = batch
+                f1, f2, ctx, out1, out2, idx1, idx2 = batch
             idx1 = idx1[0]
             idx2 = idx2[0]
             samples.append(batch)
@@ -228,7 +228,7 @@ def analyze_cortical(model, test_data, analyze_loader, args):
     else:
         hiddens_ctx = np.concatenate(hiddens_ctxs, axis = 0).squeeze()
         # mlp hiddens_ctxs: [n_ctx, 192, 1, 128]
-        # rnn hiddens_ctxs: [n_ctx, n_trials, 3, 1, 128]
+        # rnn hiddens_ctxs: [n_ctx, n_trials=192, 3, 1, 128]
         # rnn hiddens_ctx: [384, 3, 128]
         # mlp hiddens_ctx: [384, 128]
         hiddens_inc_c =  np.concatenate((hiddens_incong, hiddens_cong), axis=0) 
@@ -247,23 +247,27 @@ def analyze_cortical(model, test_data, analyze_loader, args):
         avg_hidden_ctxs = np.zeros([args.N_contexts, n_states, hiddens.shape[-1]])
     
     if args.cortical_model=='rnn':
-        hiddens_ctxs = np.asarray(hiddens_ctxs).squeeze() # [2, 192, 3, 128]
+        hiddens_ctxs = np.asarray(hiddens_ctxs).squeeze() # [n_ctx, n_tirals=192, seq_len=3, hidd_dim=128]
         # Take average for each face based on its location
         for f in range(n_states):
-            temp1 = [hiddens[i,f1_ind,:] 
+            temp1 = [np.expand_dims(hiddens[i,f1_ind,:], axis=0) 
                         for i, idx1 in enumerate(idxs1) if idx1==f]
-            temp2 = [hiddens[i,f2_ind,:] 
+            temp2 = [np.expand_dims(hiddens[i,f2_ind,:], axis=0)
                         for i, idx2 in enumerate(idxs2) if idx2==f]
             if len(temp1 + temp2)>1:
-                    avg_hidden[f] = np.concatenate(temp1 + temp2, axis=0).mean(axis=0)  
+                avg_hidden[f] = np.concatenate(temp1 + temp2, axis=0).mean(axis=0)  
             for ctx in range(args.N_contexts):
                 temp1_ctxs = [hiddens_ctxs[ctx,i,f1_ind,:] 
                                 for i, idx1 in enumerate(idxs1_ctxs[ctx]) if idx1==f]
                 temp2_ctxs = [hiddens_ctxs[ctx,i,f2_ind,:] 
                                 for i, idx2 in enumerate(idxs2_ctxs[ctx]) if idx2==f]
                 if len(temp1_ctxs + temp2_ctxs)>1:
-                    avg_hidden_ctxs[ctx, f, :] = np.concatenate(temp1_ctxs + temp2_ctxs, axis=0).mean(axis=0)
-                    # avg_hidden_ctxs: [n_contexts, n_states, hidden_dim]: [2, 16, 128] 
+                    m = np.zeros([2,hiddens_ctxs.shape[-1]])
+                    m[0] = np.mean(np.asarray(temp1_ctxs), axis=0)
+                    m[1] = np.mean(np.asarray(temp2_ctxs), axis=0)
+                    avg_hidden_ctxs[ctx, f, :] = np.mean(m, axis=0)
+                    # avg_hidden_ctxs[ctx, f, :] = np.concatenate(temp1_ctxs + temp2_ctxs, axis=0).mean(axis=0)
+                    # avg_hidden_ctxs: [n_ctx, n_states, hidden_dim]: [2, 16, 128] 
         avg_hidden_ctx = np.concatenate(avg_hidden_ctxs, axis=0)
     elif args.cortical_model=='mlp':
         for f in range(n_states):
@@ -312,12 +316,12 @@ def analyze_cortical(model, test_data, analyze_loader, args):
     results = {'samples_res':samples_res,
                'idxs1': idxs1, 'idxs2': idxs2,
                'embeddings': embeddings, # [16, 32]
-               'hiddens_ctx':hiddens_ctx, # mlp: [384,128] or in stepwisedmlp: [2,384,128]
-               'hiddens_ctxs':hiddens_ctxs, # mlp: [n_ctx, 192, 1, 128]
+               'hiddens_ctx':hiddens_ctx, # mlp/rnn: [384,128] or in stepwisedmlp: [2,384,128]
+               'hiddens_ctxs':hiddens_ctxs, # mlp: [n_ctx, 192, 1, 128], rnn: [n_ctx, 192, 3, 128]
                'avg_hidden':avg_hidden, # [16, 128] or [n_hidd=2, 16, 128]
-               'avg_hidden_ctx':avg_hidden_ctx, # [32, 128] or [n_hidd=2, 32, 128]
-               'avg_hidden_ctxs':avg_hidden_ctxs, # [n_ctx, 16, 128] or [n_hidd=2, n_ctx, 16, 128]
-               'hiddens_inc_c': hiddens_inc_c} # [288, 128] or [n_hidd=2, 288, 128]
+               'avg_hidden_ctx':avg_hidden_ctx, # mlp/rnn: [32, 128] or stepwisedmlp: [n_hidd=2, 32, 128]
+               'avg_hidden_ctxs':avg_hidden_ctxs, # [mlp/rnn: n_ctx, 16, 128] or stepwisedmlp: [n_hidd=2, n_ctx, 16, 128]
+               'hiddens_inc_c': hiddens_inc_c} # mlp/rnn: [288, 128] or stepwisedmlp: [n_hidd=2, 288, 128]
     return results
 
 def proportions(args, test_data, cortical_result, dist_results):
@@ -912,7 +916,6 @@ def analyze_regression_exc(args, test_data, cortical_result, dist_results):
     return exc_reg_results
 
 def analyze_test_seq(args, test_data, cortical_result, dist_results):
-
     import sys
     sys.path.append("..")
     data = get_loaders(batch_size=32, meta=False,
@@ -973,254 +976,3 @@ def analyze_test_seq(args, test_data, cortical_result, dist_results):
     # print('Accuracy at t=%s (face%s) contex 0:' %(hidd_t_idx,hidd_t_idx), ctx0_accs)
     # print('Accuracy at t=%s (face%s) contex 1:' %(hidd_t_idx,hidd_t_idx), ctx1_accs)
     return ctx0_accs, ctx1_accs
-
-# do the analysis over multiple runs
-def analyze_cortical_mruns(cortical_results, test_data, args):
-    n_states = test_data.n_states 
-    loc2idx = test_data.loc2idx 
-    idx2loc = {idx:loc for loc, idx in loc2idx.items()}
-    idxs = [idx for idx in range(n_states)]
-    locs = [idx2loc[idx] for idx in idxs]
-    analysis_type = args.analysis_type
-
-    checkpoints = len(cortical_results[0])
-    
-    proportion_ress = [[] for i in range(args.nruns_cortical)]
-    ratio_ress = [[] for i in range(args.nruns_cortical)]
-    corr_ress = [[] for i in range(args.nruns_cortical)]
-    dist_ress = [[] for i in range(args.nruns_cortical)]
-    ttest_ress = [[] for i in range(args.nruns_cortical)]
-    test_seq_ress = [[] for i in range(args.nruns_cortical)]
-    reg_ress = [[] for i in range(args.nruns_cortical)]
-    pca_results, tsne_results, mds_results = ({} for i in range(3))
-
-    if ((analysis_type=='pca') | (analysis_type=='all')):
-        res = cortical_results[-1][-1]
-        # samples_res = res['samples_res']
-        pca_results = analyze_dim_red(args, res, 'pca', n_components=2)
-        # mds_results = analyze_dim_red(args, res, 'mds', n_components=2)
-        # tsne_results = analyze_dim_red(args, res, 'tsne', n_components=2)
-        
-        pca_results['grid_locations']  = locs
-        pca_results['samples_res']  = res['samples_res']
-        # mds_results['grid_locations']  = locs
-        # mds_results['samples_res']  = samples_res
-        # tsne_results['grid_locations'] = locs
-        # tsne_results['samples_res']  = samples_res
-    
-    for run in range(args.nruns_cortical):
-        proportion_res = [[] for i in range(4)]
-        ratio_res = [[] for i in range(2)]
-        corr_res = [[] for i in range(4)]
-        dist_res = [[] for i in range(8)]
-        ttest_res = [[] for i in range(4)]
-        reg_con_res = [[] for i in range(6)]
-        # reg_con_res = {}
-        reg_cat_res = [[] for i in range(6)]
-        reg_exc_res = [[] for i in range(6)]
-        reg_1D_res = [[] for i in range(6)]
-        test_seq_res = [[] for i in range(2)]
-
-        for cp in range(checkpoints):
-            # load the results
-            cortical_result = cortical_results[run][cp]
-            dist_result = calc_dist(cortical_result, test_data, args)
-            dist_ctx_result = calc_dist_ctx(cortical_result, test_data, args)
-            dist_c_inc_result = hist_data(dist_result) 
-            # distance results
-            dist_res[0].append(dist_result['embed_dists'])
-            dist_res[1].append(dist_result['hidd_dists'])
-            dist_res[2].append(dist_result['grid_dists'])
-            dist_res[3].append(dist_result['angle_results']['grid_angles'])
-            dist_res[4].append(dist_c_inc_result['cong_embed_dist'])
-            dist_res[5].append(dist_c_inc_result['incong_embed_dist'])
-            dist_res[6].append(dist_c_inc_result['cong_hidd_dist'])
-            dist_res[7].append(dist_c_inc_result['incong_hidd_dist'])
-            
-            # ratio analysis 
-            if ((analysis_type=='ratio') | (analysis_type=='all')):
-                ratio_result = calc_ratio(dist_result)
-                ratio_res[0].append(ratio_result['ratio_embed'])
-                ratio_res[1].append(ratio_result['ratio_hidd'])
-            # t-test analysis
-            if ((analysis_type=='ttest') | (analysis_type=='all')):
-                ttest_result = analyze_ttest(args, dist_result)                
-                ttest_res[0].append(ttest_result['t_stat_embed'])
-                ttest_res[1].append(ttest_result['t_p_val_embed'])
-                ttest_res[2].append(ttest_result['t_stat_hidd'])
-                ttest_res[3].append(ttest_result['t_p_val_hidd'])
-            # corretion analysis
-            if ((analysis_type=='corr') | (analysis_type=='all')):
-                corr_result = analyze_corr(args, dist_result)
-                corr_res[0].append(corr_result['r_embed'])
-                corr_res[1].append(corr_result['p_val_embed'])
-                corr_res[2].append(corr_result['r_hidd'])
-                corr_res[3].append(corr_result['p_val_hidd'])
-            # proportion analysis
-            if ((analysis_type=='proportions') | (analysis_type=='all')):
-                prop_result = proportions(cortical_result)
-                proportion_res[0].append(prop_result['hiddens_ctxs'])
-                proportion_res[1].append(prop_result['p_pies'])
-                proportion_res[2].append(prop_result['ps'])
-                proportion_res[3].append(prop_result['n'])
-            # regression analysis
-            if ((analysis_type=='regs') | (analysis_type=='all')):
-                reg_result = analyze_regression(args, dist_result)
-                # categorical
-                cat_reg = reg_result['cat_reg']
-                reg_cat_res[0].append(cat_reg['p_val'])
-                reg_cat_res[1].append(cat_reg['t_val'])
-                reg_cat_res[2].append(cat_reg['param'])
-                reg_cat_res[3].append(cat_reg['y'])
-                reg_cat_res[4].append(cat_reg['y_hat_E'])
-                reg_cat_res[5].append(cat_reg['bse'])
-                # conitnuous
-                con_reg = reg_result['con_reg']
-                reg_con_res[0].append(con_reg['p_val'])
-                reg_con_res[1].append(con_reg['t_val'])
-                reg_con_res[2].append(con_reg['param'])
-                reg_con_res[3].append(con_reg['y'])
-                reg_con_res[4].append(con_reg['y_hat_E'])
-                reg_con_res[5].append(con_reg['bse'])
-                # reg_con_res['p_val'] = 
-                # Excluded - Regression (do reg after removing each state)
-                exc_reg = analyze_regression_exc(args, dist_result, test_data)
-                reg_exc_res[0].append(exc_reg['p_vals'])
-                reg_exc_res[1].append(exc_reg['t_vals'])
-                reg_exc_res[2].append(exc_reg['params'])
-                reg_exc_res[3].append(exc_reg['ys'])
-                reg_exc_res[4].append(exc_reg['y_hat_Es'])
-                reg_exc_res[5].append(exc_reg['bses'])
-                # Including 1D rank difference in the model
-                oneD_reg = analyze_regression_1D(args, dist_ctx_result)
-                oneD_reg = oneD_reg['cat_reg']
-                reg_1D_res[0].append(oneD_reg['p_val'])
-                reg_1D_res[1].append(oneD_reg['t_val'])
-                reg_1D_res[2].append(oneD_reg['param'])
-                reg_1D_res[3].append(oneD_reg['y'])
-                reg_1D_res[4].append(oneD_reg['y_hat_E'])
-                reg_1D_res[5].append(oneD_reg['bse'])
-            if ((analysis_type=='test_seq') | (analysis_type=='all')):
-                ctx0_accs, ctx1_accs = analyze_test_seq(cortical_result)
-                test_seq_res[0].append(ctx0_accs)
-                test_seq_res[1].append(ctx1_accs)
-        if ((analysis_type=='proportions') | (analysis_type=='all')):
-            proportion_ress[run].append(proportion_res)
-        if ((analysis_type=='corr') | (analysis_type=='all')):
-            corr_ress[run].append(corr_res)
-        if ((analysis_type=='ratio') | (analysis_type=='all')):
-            ratio_ress[run].append(ratio_res)
-        if ((analysis_type=='ttest') | (analysis_type=='all')):
-            ttest_ress[run].append(ttest_res)
-        if ((analysis_type=='regs') | (analysis_type=='all')):
-            reg_res = [[] for i in range(4)]
-            reg_res[0] = reg_cat_res
-            reg_res[1] = reg_con_res
-            reg_res[2] = reg_exc_res
-            reg_res[3] = reg_1D_res
-            reg_ress[run].append(reg_res)
-        if ((analysis_type=='test_seq') | (analysis_type=='all')):
-                test_seq_ress[run].append(test_seq_res)
-        dist_ress[run].append(dist_res)
-    dist_results={}
-    dist_results['embed_dists'] = np.asarray([r[0][0] for r in dist_ress])
-    dist_results['hidd_dists'] = np.asarray([r[0][1] for r in dist_ress])
-    dist_results['grid_dists'] = np.asarray([r[0][2] for r in dist_ress])
-    dist_results['grid_angles'] = np.asarray([r[0][3] for r in dist_ress])
-    dist_results['cong_embed_dist'] = np.asarray([r[0][4] for r in dist_ress])
-    dist_results['incong_embed_dist'] = np.asarray([r[0][5] for r in dist_ress])
-    dist_results['cong_hidd_dist'] = np.asarray([r[0][6] for r in dist_ress])
-    dist_results['incong_hidd_dist'] = np.asarray([r[0][7] for r in dist_ress])
-    if ((analysis_type=='corr') | (analysis_type=='all')):
-        corr_results = {}
-        corr_results['r_embeds'] = np.asarray([r[0][0] for r in corr_ress])
-        corr_results['p_val_embeds'] = np.asarray([r[0][1] for r in corr_ress])
-        corr_results['r_hidds'] = np.asarray([r[0][2] for r in corr_ress])
-        corr_results['p_val_hidds'] = np.asarray([r[0][3] for r in corr_ress])
-        results = {'corr_results': corr_results, 
-                   'dist_results': dist_results}
-        with open('../results/'+'corr_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    if ((analysis_type=='ratio') | (analysis_type=='all')):
-        ratio_results = {}
-        ratio_results['ratio_embeds'] = np.asarray([r[0][0] for r in ratio_ress])
-        ratio_results['ratio_hidds'] = np.asarray([r[0][1] for r in ratio_ress])
-        results = {'ratio_results': ratio_results, 
-                   'dist_results': dist_results}
-        with open('../results/'+'ratio_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    if ((analysis_type=='ttest') | (analysis_type=='all')):
-        ttest_results = {}
-        ttest_results['t_stat_embed'] = np.asarray([r[0][0] for r in ttest_ress])
-        ttest_results['t_p_val_embed'] = np.asarray([r[0][1] for r in ttest_ress])
-        ttest_results['t_stat_hidd'] = np.asarray([r[0][2] for r in ttest_ress])
-        ttest_results['t_p_val_hidd'] = np.asarray([r[0][3] for r in ttest_ress])
-        results = {'ttest_results': ttest_results,
-                   'dist_results': dist_results}
-        with open('../results/'+'ttest_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    if ((analysis_type=='pca') | (analysis_type=='all')): 
-        results = {'pca_results': pca_results,
-                   'dist_results': dist_results}
-        with open('../results/'+'pca_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    if ((analysis_type=='proportions') | (analysis_type=='all')): 
-        proportion_results={}
-        proportion_results['hiddens_ctxs'] = np.asarray([r[0][0] for r in proportion_ress])
-        proportion_results['p_pies'] = np.asarray([r[0][1] for r in proportion_ress])
-        proportion_results['ps'] = np.asarray([r[0][2] for r in proportion_ress])
-        proportion_results['n'] = np.asarray([r[0][3] for r in proportion_ress])
-        results = {'proportion_results': proportion_results,
-                   'dist_results': dist_results}
-        with open('../results/'+'proportion_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    if ((analysis_type=='test_seq') | (analysis_type=='all')): 
-        test_seq_results={}
-        test_seq_results['ctx0_accs'] = np.asarray([r[0][0] for r in test_seq_ress])
-        test_seq_results['ctx1_accs'] = np.asarray([r[0][1] for r in test_seq_ress])
-        results = {'test_seq_results': test_seq_results,
-                   'dist_results': dist_results}
-        with open('../results/'+'test_seq_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    if ((analysis_type=='regs') | (analysis_type=='all')):
-        reg_ress = np.asarray(reg_ress).squeeze(1)
-
-        cat_regs = {}
-        cat_regs['p_vals'] = reg_ress[:,0,0,:]
-        cat_regs['t_vals'] = reg_ress[:,0,1,:]
-        cat_regs['params'] = reg_ress[:,0,2,:]
-        cat_regs['ys'] = reg_ress[:,0,3,:]
-        cat_regs['y_hat_Es'] = reg_ress[:,0,4,:]
-        cat_regs['bses'] = reg_ress[:,0,5,:]
-        con_regs = {}
-        con_regs['p_vals'] = reg_ress[:,1,0,:]
-        con_regs['t_vals'] = reg_ress[:,1,1,:]
-        con_regs['params'] = reg_ress[:,1,2,:]
-        con_regs['ys'] = reg_ress[:,1,3,:]
-        con_regs['y_hat_Es'] = reg_ress[:,1,4,:]
-        con_regs['bses'] = reg_ress[:,1,5,:]
-        exc_regs = {}
-        exc_regs['p_vals'] = reg_ress[:,2,0,:]
-        exc_regs['t_vals'] = reg_ress[:,2,1,:]
-        exc_regs['params'] = reg_ress[:,2,2,:]
-        exc_regs['ys'] = reg_ress[:,2,3,:]
-        exc_regs['y_hat_Es'] = reg_ress[:,2,4,:]
-        exc_regs['bses'] = reg_ress[:,2,5,:]
-        oneD_regs = {}
-        oneD_regs['p_vals'] = reg_ress[:,3,0,:]
-        oneD_regs['t_vals'] = reg_ress[:,3,1,:]
-        oneD_regs['params'] = reg_ress[:,3,2,:]
-        oneD_regs['ys'] = reg_ress[:,3,3,:]
-        oneD_regs['y_hat_Es'] = reg_ress[:,3,4,:]
-        oneD_regs['bses'] = reg_ress[:,3,5,:]
-        reg_results = {'cat_regs': cat_regs,
-                       'con_regs': con_regs,
-                       'exc_regs': exc_regs,
-                       'oneD_regs': oneD_regs}
-        results = {'dist_results': dist_results,
-                   'reg_results': reg_results}
-        with open('../results/'+'reg_'+args.out_file, 'wb') as f:
-            pickle.dump(results, f)
-    
-    return results
-

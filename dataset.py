@@ -631,7 +631,24 @@ def get_loaders(batch_size, meta, use_images, image_dir, n_episodes, \
         test_data = GridMetaDataset(testing=True, n_episodes=n_episodes)
         test_loader = DataLoader(test_data, batch_size=batch_size, 
                                  shuffle=True, collate_fn=meta_collate)
-    elif ((N_responses=='two') or (cortical_task=='wine_task')):
+    elif cortical_task == 'face_task':
+        # Train
+        train_data = GridDataset(testing=False, analyzing=False, use_images=use_images, 
+                                 image_dir=image_dir)
+        train_loader = DataLoader(train_data, batch_size=batch_size, 
+                                  shuffle=True, collate_fn=grid_collate)
+        # Test
+        test_data = GridDataset(testing=True, analyzing=False, use_images=use_images, 
+                                image_dir=image_dir)
+        test_loader = DataLoader(test_data, batch_size=batch_size, 
+                                 shuffle=True, collate_fn=grid_collate)
+        # Analyze
+        analyze_data = GridDataset(testing=False, analyzing=True, use_images=use_images, 
+                                   image_dir=image_dir)
+        analyze_loader = DataLoader(analyze_data, batch_size=1, 
+                                 shuffle=False, collate_fn=grid_collate)
+    elif (cortical_task=='wine_task'):
+    # ToDo: check if I need to check the N_responses == 'two' here
         # Train
         train_data = WineGridDataset(testing=False, analyzing=False, 
                                      N_contexts=N_contexts, N_responses=N_responses,
@@ -650,22 +667,7 @@ def get_loaders(batch_size, meta, use_images, image_dir, n_episodes, \
                                        use_images=use_images, image_dir=image_dir)
         analyze_loader = DataLoader(analyze_data, batch_size=1, 
                                     shuffle=False, collate_fn=wine_grid_collate)        
-    elif cortical_task == 'face_task':
-        # Train
-        train_data = GridDataset(testing=False, analyzing=False, use_images=use_images, 
-                                 image_dir=image_dir)
-        train_loader = DataLoader(train_data, batch_size=batch_size, 
-                                  shuffle=True, collate_fn=grid_collate)
-        # Test
-        test_data = GridDataset(testing=True, analyzing=False, use_images=use_images, 
-                                image_dir=image_dir)
-        test_loader = DataLoader(test_data, batch_size=batch_size, 
-                                 shuffle=True, collate_fn=grid_collate)
-        # Analyze
-        analyze_data = GridDataset(testing=False, analyzing=True, use_images=use_images, 
-                                   image_dir=image_dir)
-        analyze_loader = DataLoader(analyze_data, batch_size=1, 
-                                 shuffle=False, collate_fn=grid_collate)
+    
 
     return train_data, train_loader, test_data, test_loader, analyze_data, analyze_loader
 

@@ -7,4 +7,5 @@ echo "Process mlp starts"
 
 python main.py \
 --cortical_model 'mlp' \
+--nruns_cortical 40 \
 --out_file 'results_mlp.P' \

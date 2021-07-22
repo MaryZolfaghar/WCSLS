@@ -39,7 +39,7 @@ parser.add_argument('--lr_episodic', type=float, default=0.001,
 # Cortical system
 parser.add_argument('--use_images', action='store_false',
                     help='Use full face images and CNN for cortical system')
-parser.add_argument('--cortical_model', type=str, default='stepwisemlp',
+parser.add_argument('--cortical_model', type=str, default='mlp',
                     help='Use a recurrent neural network (LSTM) or MLP for cortical system')
 parser.add_argument('--cortical_task', type=str, default='face_task',
                     help='The task for the cortical model - either face_task or wine_task')
@@ -228,7 +228,7 @@ def main(args):
                     cortical_result['analyze_acc'] = cortical_analyze_acc,
                     cortical_result['analyze_correct'] = cortical_analyze_correct,
                     cortical_run.append(cortical_result)
-                    
+
                 if i >= N:
                     done = True 
                     break
@@ -268,12 +268,12 @@ def main(args):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    analysis_names = ['analyze_dim_red', 'hist_data', 'calc_ratio', \
-                  'analyze_dim_red', 'analyze_ttest', 'analyze_corr', \
-                  'analyze_regression', 'analyze_regression_1D', \
-                  'analyze_regression_exc', 'analyze_test_seq']
+    analysis_names = ['hist_data', 'calc_ratio', \
+                      'analyze_dim_red', 'analyze_ttest', 'analyze_corr', \
+                      'analyze_regression', 'analyze_regression_1D', \
+                      'analyze_regression_exc', 'analyze_test_seq']
 
-    analysis_funcs = [analyze_dim_red, hist_data, calc_ratio, \
+    analysis_funcs = [hist_data, calc_ratio, \
                       analyze_dim_red, analyze_ttest, analyze_corr, \
                       analyze_regression, analyze_regression_1D, \
                       analyze_regression_exc, analyze_test_seq]

@@ -8,6 +8,7 @@ echo "Process rnn with two responses starts"
 python main.py \
 --cortical_model 'rnn' \
 --N_cortical 2000 \
---order_ax 'first' \
+--nruns_cortical 20 \
+--order_ctx 'first' \
 --N_responses 'two' \
 --out_file 'ctxF_results_rnn_2resps.P' \
