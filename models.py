@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.nn.modules.rnn import LSTMCell
 # from torch.nn.modules.rnn import LSTMCell
 
 class MemoryLayer(nn.Module):
@@ -95,7 +96,6 @@ class EpisodicSystem(nn.Module):
         
         return out, attention
 
-
 class CNN(nn.Module):
     def __init__(self, state_dim):
         super(CNN, self).__init__()
@@ -155,7 +155,6 @@ class CNN(nn.Module):
             w = new_w
             h = new_h
         return int(w*h*8)
-
 
 class CorticalSystem(nn.Module):
     def __init__(self, use_images, N_responses, N_contexts):
@@ -217,16 +216,15 @@ class CorticalSystem(nn.Module):
         
         return x, hidd
 
-
 class RecurrentCorticalSystem(nn.Module):
     def __init__(self, use_images, N_contexts):
         super(RecurrentCorticalSystem, self).__init__()
         self.use_images = use_images
+        self.N_contexts = N_contexts
 
         # Hyperparameters
         self.n_states = 16
         self.state_dim = 32
-        self.mlp_in_dim = 3*self.state_dim # (f1 + f2 + context/axis) # this should be now hidden_dim of lstm
         self.hidden_dim = 128
         self.output_dim = 2
         self.analyze = False
@@ -240,7 +238,7 @@ class RecurrentCorticalSystem(nn.Module):
             self.face_embedding = nn.Embedding(self.n_states, self.state_dim)
             nn.init.xavier_normal_(self.face_embedding.weight)
             
-        self.ctx_embedding = nn.Embedding(N_contexts, self.state_dim)
+        self.ctx_embedding = nn.Embedding(self.N_contexts, self.state_dim)
         nn.init.xavier_normal_(self.ctx_embedding.weight)
 
         # LSTM
@@ -294,6 +292,95 @@ class RecurrentCorticalSystem(nn.Module):
         
         return x, lstm_out
 
+
+class RNNCell(nn.Module):
+    def __init__(self, use_images, N_contexts):
+        super(RNNCell, self).__init__()
+        self.use_images = use_images
+        self.N_contexts = N_contexts
+
+        # Hyperparameters
+        self.n_states = 16
+        self.state_dim = 32
+        self.hidden_dim = 128
+        self.output_dim = 2
+        self.analyze = False
+        self.order_ctx = 'first'
+        self.N_responses = 'one'
+        
+        # Input embedding (images or one-hot)
+        if self.use_images:
+            self.face_embedding = CNN(self.state_dim)
+        else:
+            self.face_embedding = nn.Embedding(self.n_states, self.state_dim)
+            nn.init.xavier_normal_(self.face_embedding.weight)
+        
+        self.ctx_embedding = nn.Embedding(self.N_contexts, self.state_dim)
+        nn.init.xavier_normal_(self.ctx_embedding.weight)
+
+        # LSTM Cell
+        self.lstmcell = nn.LSTMCell(self.state_dim, self.hidden_dim)
+
+        # MLP
+        self.resp1 = nn.Linear(self.hidden_dim, self.output_dim)
+        self.resp2 = nn.Linear(self.hidden_dim, self.output_dim)
+        self.relu = nn.ReLU()
+
+
+    def forward(self, f1, f2, ctx):
+        # Embed inputs
+        f1_embed = self.face_embedding(f1).unsqueeze(0) # [1, batch, state_dim]
+        f2_embed = self.face_embedding(f2).unsqueeze(0) # [1, batch, state_dim]
+        ctx_embed = self.ctx_embedding(ctx).unsqueeze(0) # [1, batch, state_dim]
+        
+        # LSTMCell
+        if self.order_ctx == 'last':
+            x = torch.cat([f1_embed, f2_embed, ctx_embed], dim=0)
+        elif self.order_ctx == 'first':
+            x = torch.cat([ctx_embed, f1_embed, f2_embed], dim=0)
+
+        lstm_out = []
+        n_times = len(x)
+        for t in range(n_times):
+            if f1_embed.size(1)>1:
+                xt = x[t].squeeze() # [batch, state_dim]
+            else:
+                xt = x[t] # [1, state_dim], batch==1
+            if (t < 2):
+                if t==0:
+                    # h0 and c0
+                    h_n = torch.zeros([f1_embed.size(1), self.hidden_dim]) # [1, batch, hidden_dim]
+                    c_n = torch.zeros([f1_embed.size(1), self.hidden_dim]) # [1, batch, hidden_dim]
+                h_n, c_n = self.lstmcell(xt, (h_n.detach(), c_n.detach())) # h_n/c_n: [1,batch, hidden_dim]
+            else:
+                h_n, c_n = self.lstmcell(xt, (h_n.requires_grad_(), c_n.requires_grad_()))
+            lstm_out.append(h_n)
+        lstm_out = torch.stack(lstm_out, dim=0) # [seq_length, batch, hidden_dim]
+
+        if self.analyze:
+            lstm_out = lstm_out.permute(1,0,2)
+            # lstm_out: [batch, seq_length, hidden_dim]
+            x1 = self.resp1(lstm_out)
+            # x1: [batch, seq_length, output_dim] 
+            if self.N_responses == 'one':
+                x = x1
+            elif self.N_responses == 'two':
+                x2 = self.resp2(lstm_out)
+                x = [x1, x2]
+        else:
+            x1 = self.resp1(h_n)
+            # x1: [batch, output_dim] 
+            if self.N_responses == 'one':
+                x = x1
+            elif self.N_responses == 'two':
+                x2 = self.resp2(h_n)
+                x = [x1, x2]
+        
+        return x, lstm_out
+
+
+
+
 class StepwiseCorticalSystem(nn.Module):
     def __init__(self, use_images):
         super(StepwiseCorticalSystem,self).__init__()
@@ -339,3 +426,5 @@ class StepwiseCorticalSystem(nn.Module):
         x = self.resp1(hidd2)  # [batch, output_dim]
         hidd = [hidd1, hidd2]
         return x, hidd
+
+

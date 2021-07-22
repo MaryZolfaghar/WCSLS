@@ -234,7 +234,11 @@ def analyze_cortical(model, test_data, analyze_loader, args):
         hiddens_inc_c =  np.concatenate((hiddens_incong, hiddens_cong), axis=0) 
         # rnn hiddens_inc_c: [384-ties, seq_length, 128]: [288, 3, 128]
         # mlp hiddens_inc_c: [384-ties, 128]: [288, 128]
-    if args.cortical_model=='rnn':
+
+# Madeline Campbell: 'm starting law school so would love to live with grad students also. I'm looking to live with other grad students, and I would like a private room. I expect to be pretty busy and studying a lot, but when I am free I like to have fun. More than happy to connect with the other roommates! mc2394@cornell.edu
+# Em Garcia: ’m a recent Uc davis graduate. I majored in psychology and minored in communication, I love music, animals and movies and I plan on going to graduate school in a few years. ’m trying to stay in davis a little bit longer before moving back home to Southern California. In terms of housing, I’m very courteous and quiet! I like having a clean, neat space and I’m respectful of common spaces. I keep to myself but I’m also open to cooking with housemates, I love cooking for people!
+
+    if ((args.cortical_model=='rnn') or (args.cortical_model=='rnncell')):
         hiddens_ctx = hiddens_ctx[:, -1, :] # [384, 128]
         hiddens_inc_c = hiddens_inc_c[:, -1, :] #[288, 128]
     samples_inc_c = np.concatenate((samples_incong, samples_cong), axis=0)
@@ -246,7 +250,7 @@ def analyze_cortical(model, test_data, analyze_loader, args):
         avg_hidden = np.zeros([n_states, hiddens.shape[-1]])
         avg_hidden_ctxs = np.zeros([args.N_contexts, n_states, hiddens.shape[-1]])
     
-    if args.cortical_model=='rnn':
+    if ((args.cortical_model=='rnn') or (args.cortical_model=='rnncell')):
         hiddens_ctxs = np.asarray(hiddens_ctxs).squeeze() # [n_ctx, n_tirals=192, seq_len=3, hidd_dim=128]
         # Take average for each face based on its location
         for f in range(n_states):
@@ -320,6 +324,7 @@ def analyze_cortical(model, test_data, analyze_loader, args):
                'hiddens_ctxs':hiddens_ctxs, # mlp: [n_ctx, 192, 1, 128], rnn: [n_ctx, 192, 3, 128]
                'avg_hidden':avg_hidden, # [16, 128] or [n_hidd=2, 16, 128]
                'avg_hidden_ctx':avg_hidden_ctx, # mlp/rnn: [32, 128] or stepwisedmlp: [n_hidd=2, 32, 128]
+               # the reaosn to have these is because the concat for each model is diff and want to deal with it here
                'avg_hidden_ctxs':avg_hidden_ctxs, # [mlp/rnn: n_ctx, 16, 128] or stepwisedmlp: [n_hidd=2, n_ctx, 16, 128]
                'hiddens_inc_c': hiddens_inc_c} # mlp/rnn: [288, 128] or stepwisedmlp: [n_hidd=2, 288, 128]
     return results
@@ -541,8 +546,8 @@ def analyze_dim_red(args, test_data, cortical_results, dist_results, method='pca
     hiddens_inc_c = cortical_result['hiddens_inc_c'] # [288, 128] or in stepwisemlp: [2,288,128]
     # hiddens_ctx = np.asarray(hiddens_ctxs)
     # hiddens_ctxs = np.concatenate(hiddens_ctxs, axis=0).squeeze() # [384, 128] or [384, 3, 128]
-    # if args.cortical_model == 'rnn':
-    #     hiddens_ctxs = hiddens_ctxs[:,-1, :]
+    # if ((args.cortical_model == 'rnn') or (args.cortical_model == 'rnncell')):
+        # hiddens_ctx = hiddens_ctx[:,-1, :]
     # avg_hidden_ctxs = np.concatenate(avg_hidden_ctxs, axis=0) # [32, 128]
     
     results = {}

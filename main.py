@@ -6,8 +6,7 @@ import random
 import numpy as np 
 
 from dataset import get_loaders
-from models import EpisodicSystem, CorticalSystem, \
-                   RecurrentCorticalSystem, StepwiseCorticalSystem
+from models import *
 from train import train
 from test import test
 # from analyze import analyze_episodic, analyze_cortical, analyze_cortical_mruns
@@ -39,7 +38,7 @@ parser.add_argument('--lr_episodic', type=float, default=0.001,
 # Cortical system
 parser.add_argument('--use_images', action='store_false',
                     help='Use full face images and CNN for cortical system')
-parser.add_argument('--cortical_model', type=str, default='mlp',
+parser.add_argument('--cortical_model', type=str, default='rnn',
                     help='Use a recurrent neural network (LSTM) or MLP for cortical system')
 parser.add_argument('--cortical_task', type=str, default='face_task',
                     help='The task for the cortical model - either face_task or wine_task')
@@ -117,7 +116,6 @@ def main(args):
             cortical_system = RecurrentCorticalSystem(use_images=args.use_images, N_contexts=args.N_contexts)
             # Use context/axis as the last one in the sequence
             cortical_system.order_ctx = args.order_ctx
-            
         elif args.cortical_model=='mlp':
             print('Cortical system is running with an MLP')
             cortical_system = CorticalSystem(use_images=args.use_images, 
@@ -126,6 +124,10 @@ def main(args):
         elif args.cortical_model=='stepwisemlp':
             print('Cortical system is running with a StepwiseMLP')
             cortical_system = StepwiseCorticalSystem(use_images=args.use_images) 
+        elif args.cortical_model=='rnncell':
+            print('Cortical system is running with a RNNCell')
+            cortical_system = RNNCell(use_images=args.use_images, 
+                                      N_contexts=args.N_contexts)
                        
         cortical_system.to(device)
 
