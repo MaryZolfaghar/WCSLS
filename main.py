@@ -270,16 +270,19 @@ def main(args):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    analysis_names = ['hist_data', 'calc_ratio', \
-                      'analyze_dim_red', 'analyze_ttest', 'analyze_corr', \
-                      'analyze_regression', 'analyze_regression_1D', \
-                      'analyze_regression_exc', 'analyze_test_seq']
+    # analysis_names = ['hist_data', 'calc_ratio', \
+    #                   'analyze_dim_red', 'analyze_ttest', 'analyze_corr', \
+    #                   'analyze_regression', 'analyze_regression_1D', \
+    #                   'analyze_regression_exc', 'analyze_test_seq', 'proportions']
 
-    analysis_funcs = [hist_data, calc_ratio, \
-                      analyze_dim_red, analyze_ttest, analyze_corr, \
-                      analyze_regression, analyze_regression_1D, \
-                      analyze_regression_exc, analyze_test_seq]
-    
+    # analysis_funcs = [hist_data, calc_ratio, \
+    #                   analyze_dim_red, analyze_ttest, analyze_corr, \
+    #                   analyze_regression, analyze_regression_1D, \
+    #                   analyze_regression_exc, analyze_test_seq, proportions]
+    analysis_names = ['proportions']
+
+    analysis_funcs = [proportions]
+
     args.analysis_names = analysis_names
     args.analysis_funcs = analysis_funcs
 
