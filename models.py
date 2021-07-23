@@ -378,9 +378,6 @@ class RNNCell(nn.Module):
         
         return x, lstm_out
 
-
-
-
 class StepwiseCorticalSystem(nn.Module):
     def __init__(self, use_images):
         super(StepwiseCorticalSystem,self).__init__()

@@ -3,13 +3,13 @@
 # conda activate /Users/Maryam/anaconda3/envs/csls
 # /Users/Maryam/anaconda3/envs/csls
 
-echo "Process rnn starts"
+echo "Process rnncell starts"
 
 python main.py \
---cortical_model 'rnn' \
+--cortical_model 'rnncell' \
 --nruns_cortical 20 \
---order_ctx 'last' \
---out_file 'ctxL_results_rnn.P' \
+--order_ctx 'first' \
+--out_file 'ctxF_results_rnncell.P' \
 # defaults
 --seed 0 \
 --print_every 200 \
