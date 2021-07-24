@@ -9,6 +9,8 @@ def run_analyze(args, test_data, cortical_results):
         print('Doing analysis %s' %(analyze_name))
         if analyze_name == 'analyze_dim_red':
             analyze_dim_red(args, test_data, cortical_results, dist_results=None, method='pca', n_components=2)
+            with open('../results/'+analyze_name+'_'+args.out_file, 'wb') as f:
+                pickle.dump(runs, f)
             continue
         for run in range(n_runs):
             checkpoint = []
