@@ -38,7 +38,7 @@ parser.add_argument('--lr_episodic', type=float, default=0.001,
 # Cortical system
 parser.add_argument('--use_images', action='store_false',
                     help='Use full face images and CNN for cortical system')
-parser.add_argument('--cortical_model', type=str, default='rnn',
+parser.add_argument('--cortical_model', type=str, default='rnncell',
                     help='Use a recurrent neural network (LSTM) or MLP for cortical system')
 parser.add_argument('--cortical_task', type=str, default='face_task',
                     help='The task for the cortical model - either face_task or wine_task')
@@ -62,6 +62,8 @@ parser.add_argument('--N_responses', type=str, default='one',
                     help='How many responses to perform - multitasking')
 parser.add_argument('--N_contexts', type=int, default=2,
                     help='Number of contexts')
+parser.add_argument('--dimred_method', type=str, default='pca',
+                    help='Dimentionality reduction method')
 # ToDo: the training day experiment is not complete yet, I only changed the dataset.py
 # I need to change the main.py as well, I created the main_V2.py and changed train.py 
 # The issue is in the main_V2 there is a loop, and the optimizer stuff should be zero_grade outside that loop

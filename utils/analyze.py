@@ -125,7 +125,7 @@ def analyze_cortical(model, test_data, analyze_loader, args):
     idxs1_ctxs = [[] for i in range(args.N_contexts)]
     idxs2_ctxs = [[] for i in range(args.N_contexts)]
     samples = []
-    samples_ctxs =[[] for i in range(args.N_contexts)]
+    samples_ctxs = [[] for i in range(args.N_contexts)]
     samples_cong = []
     samples_incong = []
 
@@ -216,7 +216,7 @@ def analyze_cortical(model, test_data, analyze_loader, args):
     hiddens_cong = np.asarray(hiddens_cong).squeeze() 
     # rnn hiddens_cong/incong: [144, 3, 128]
     # mlp hiddens_cong/incong: [144, 128]
-    # mlp hiddens_cong/incong: [2, 144, 128]
+    # stepwise mlp hiddens_cong/incong: [2, 144, 128]
     
     # hiddens_ctx: even tho it is 384, but it is ordered based on the contexts
     if args.cortical_model=='stepwisemlp':
@@ -234,9 +234,6 @@ def analyze_cortical(model, test_data, analyze_loader, args):
         hiddens_inc_c =  np.concatenate((hiddens_incong, hiddens_cong), axis=0) 
         # rnn hiddens_inc_c: [384-ties, seq_length, 128]: [288, 3, 128]
         # mlp hiddens_inc_c: [384-ties, 128]: [288, 128]
-
-# Madeline Campbell: 'm starting law school so would love to live with grad students also. I'm looking to live with other grad students, and I would like a private room. I expect to be pretty busy and studying a lot, but when I am free I like to have fun. More than happy to connect with the other roommates! mc2394@cornell.edu
-# Em Garcia: ’m a recent Uc davis graduate. I majored in psychology and minored in communication, I love music, animals and movies and I plan on going to graduate school in a few years. ’m trying to stay in davis a little bit longer before moving back home to Southern California. In terms of housing, I’m very courteous and quiet! I like having a clean, neat space and I’m respectful of common spaces. I keep to myself but I’m also open to cooking with housemates, I love cooking for people!
 
     if ((args.cortical_model=='rnn') or (args.cortical_model=='rnncell')):
         hiddens_ctx = hiddens_ctx[:, -1, :] # [384, 128]
@@ -532,8 +529,8 @@ def calc_dist(args, test_data, cortical_result, dist_results=None):
                     'angle_results': angle_results}
     return dist_results
 
-def analyze_dim_red(args, test_data, cortical_results, dist_results, method='pca', n_components=2):
-    cortical_result = cortical_results[-1][-1]
+def analyze_dim_red(args, test_data, cortical_result, dist_results, n_components=2):
+    method = args.dimred_method
     n_states = test_data.n_states 
     loc2idx = test_data.loc2idx 
     idx2loc = {idx:loc for loc, idx in loc2idx.items()}

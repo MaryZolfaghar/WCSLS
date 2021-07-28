@@ -240,6 +240,8 @@ class RecurrentCorticalSystem(nn.Module):
             
         self.ctx_embedding = nn.Embedding(self.N_contexts, self.state_dim)
         nn.init.xavier_normal_(self.ctx_embedding.weight)
+        ctx_bias = torch.cat([torch.ones([1, self.state_dim]), -1*torch.ones([1, self.state_dim])], dim=0)
+        self.ctx_embedding.weight.data = self.ctx_embedding.weight.data + ctx_bias
 
         # LSTM
         self.lstm = nn.LSTM(self.state_dim, self.hidden_dim)
@@ -264,13 +266,10 @@ class RecurrentCorticalSystem(nn.Module):
             
         
         # MLP
-        # x[t]
         lstm_out, (h_n, c_n) = self.lstm(x)
         # lstm_out: [seq_length, batch, hidden_dim]
         # h: [1, batch, hidden_dim]
         # c: [1, batch, hidden_dim]
-        # for t in times:
-        #     LSTMCell()
         if self.analyze:
             lstm_out = lstm_out.permute(1,0,2)
             # lstm_out: [batch, seq_length, hidden_dim]
@@ -317,6 +316,9 @@ class RNNCell(nn.Module):
         
         self.ctx_embedding = nn.Embedding(self.N_contexts, self.state_dim)
         nn.init.xavier_normal_(self.ctx_embedding.weight)
+        ctx_bias = torch.cat([3*torch.ones([1, self.state_dim]), -3*torch.ones([1, self.state_dim])], dim=0)
+        self.ctx_embedding.weight.data = self.ctx_embedding.weight.data + ctx_bias
+        
 
         # LSTM Cell
         self.lstmcell = nn.LSTMCell(self.state_dim, self.hidden_dim)
@@ -341,19 +343,12 @@ class RNNCell(nn.Module):
 
         lstm_out = []
         n_times = len(x)
+        # h0 and c0
+        h_n = torch.zeros([f1_embed.size(1), self.hidden_dim]) # [1, batch, hidden_dim]
+        c_n = torch.zeros([f1_embed.size(1), self.hidden_dim]) # [1, batch, hidden_dim]
         for t in range(n_times):
-            if f1_embed.size(1)>1:
-                xt = x[t].squeeze() # [batch, state_dim]
-            else:
-                xt = x[t] # [1, state_dim], batch==1
-            if (t < 2):
-                if t==0:
-                    # h0 and c0
-                    h_n = torch.zeros([f1_embed.size(1), self.hidden_dim]) # [1, batch, hidden_dim]
-                    c_n = torch.zeros([f1_embed.size(1), self.hidden_dim]) # [1, batch, hidden_dim]
-                h_n, c_n = self.lstmcell(xt, (h_n.detach(), c_n.detach())) # h_n/c_n: [1,batch, hidden_dim]
-            else:
-                h_n, c_n = self.lstmcell(xt, (h_n.requires_grad_(), c_n.requires_grad_()))
+            xt = x[t]
+            h_n, c_n = self.lstmcell(xt, (h_n.detach(), c_n.detach())) # h_n/c_n: [1,batch, hidden_dim]
             lstm_out.append(h_n)
         lstm_out = torch.stack(lstm_out, dim=0) # [seq_length, batch, hidden_dim]
 
@@ -368,6 +363,7 @@ class RNNCell(nn.Module):
                 x2 = self.resp2(lstm_out)
                 x = [x1, x2]
         else:
+            # r = torch.cat([h_n.unsqueeze(0), ctx_embed], dim=0)
             x1 = self.resp1(h_n)
             # x1: [batch, output_dim] 
             if self.N_responses == 'one':

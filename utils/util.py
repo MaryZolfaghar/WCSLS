@@ -7,7 +7,8 @@ def anlysis_to_dict(args):
     return analysis_dict
     
 def dict_to_list(results, analyze_name):
-    n_runs, n_checkpoints = np.asarray(results[analyze_name]).shape
+    n_runs = np.asarray(results[analyze_name]).shape[0]
+    n_checkpoints = np.asarray(results[analyze_name]).shape[1]
     runs = {}
     for r in range(n_runs):
         checkpoints = {}
