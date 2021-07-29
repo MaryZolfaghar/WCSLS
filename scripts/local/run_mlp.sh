@@ -8,6 +8,7 @@ echo "Process mlp starts"
 python main.py \
 --cortical_model 'mlp' \
 --nruns_cortical 20 \
+--truncated_mlp 'false' \
 --out_file 'results_mlp.P' \
 --seed 0 \
 --print_every 200 \

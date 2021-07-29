@@ -9,7 +9,8 @@ python main.py \
 --cortical_model 'rnn' \
 --nruns_cortical 20 \
 --order_ctx 'first' \
---out_file 'ctxF_results_rnn.P' \
+--truncated_mlp 'false' \
+--out_file 'ctxF_results_rnn_init1.P' \
 --seed 0 \
 --print_every 200 \
 --N_episodic 1000 \

@@ -8,7 +8,8 @@ echo "Process stepwise mlp starts"
 python main.py \
 --cortical_model 'stepwisemlp' \
 --nruns_cortical 20 \
---out_file 'results_stepwisemlp.P' \
+--truncated_mlp 'true' \
+--out_file 'results_truncated_stepwisemlp.P' \
 --seed 0 \
 --print_every 200 \
 --N_episodic 1000 \

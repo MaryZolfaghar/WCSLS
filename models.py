@@ -240,8 +240,9 @@ class RecurrentCorticalSystem(nn.Module):
             
         self.ctx_embedding = nn.Embedding(self.N_contexts, self.state_dim)
         nn.init.xavier_normal_(self.ctx_embedding.weight)
-        ctx_bias = torch.cat([torch.ones([1, self.state_dim]), -1*torch.ones([1, self.state_dim])], dim=0)
+        ctx_bias = torch.cat([1*torch.ones([1, self.state_dim]), -1*torch.ones([1, self.state_dim])], dim=0)
         self.ctx_embedding.weight.data = self.ctx_embedding.weight.data + ctx_bias
+        
 
         # LSTM
         self.lstm = nn.LSTM(self.state_dim, self.hidden_dim)
@@ -316,7 +317,7 @@ class RNNCell(nn.Module):
         
         self.ctx_embedding = nn.Embedding(self.N_contexts, self.state_dim)
         nn.init.xavier_normal_(self.ctx_embedding.weight)
-        ctx_bias = torch.cat([3*torch.ones([1, self.state_dim]), -3*torch.ones([1, self.state_dim])], dim=0)
+        ctx_bias = torch.cat([1*torch.ones([1, self.state_dim]), -1*torch.ones([1, self.state_dim])], dim=0)
         self.ctx_embedding.weight.data = self.ctx_embedding.weight.data + ctx_bias
         
 
@@ -389,6 +390,7 @@ class StepwiseCorticalSystem(nn.Module):
         self.output_dim = 2
         self.analyze = False
         self.order_ctx = 'first'
+        self.truncated_mlp = 'false'
 
         # Input Embedding (images or one-hot)
         if self.use_images:
@@ -410,10 +412,22 @@ class StepwiseCorticalSystem(nn.Module):
         f2_embed = self.face_embedding(f2) # [batch, state_dim]
         ctx_embed = self.ctx_embedding(ctx)
 
+        # if self.order_ctx == 'last':
+        #     x1 = torch.cat([ctx_embed, f1_embed], dim=1)
+        #     # x = torch.cat([f1_embed, f2_embed, ctx_embed], dim=0)
+        # elif self.order_ctx == 'first':
+        #     x1 = torch.cat([ctx_embed, f1_embed], dim=1)
+        #     # x = torch.cat([ctx_embed, f1_embed, f2_embed], dim=0)
+
         x1 = torch.cat([ctx_embed, f1_embed], dim=1)
         hidd1 = self.hidden1(x1) # [batch, hidden1_dim]
         hidd1 = self.relu(hidd1) # [batch, hidden1_dim]
-        x2 = torch.cat([hidd1, f2_embed], dim=1) # [batch, state_dim+hidden1_dim]
+        
+        if self.truncated_mlp=='true':
+            x2 = torch.cat([hidd1.detach(), f2_embed], dim=1) # [batch, state_dim+hidden1_dim]
+        else:
+            x2 = torch.cat([hidd1, f2_embed], dim=1) # [batch, state_dim+hidden1_dim]
+
         hidd2 = self.hidden2(x2) # [batch, hidden2_dim]
         hidd2 = self.relu(hidd2) # [batch, hidden2_dim]
         x = self.resp1(hidd2)  # [batch, output_dim]

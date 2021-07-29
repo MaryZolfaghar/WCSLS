@@ -54,8 +54,8 @@ parser.add_argument('--nruns_cortical', type=int, default=1, # 20
                     help='Number of runs for cortical system')
 parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
-# parser.add_argument('--analysis_type', type=str, default='all',
-                    # help='What analysis to do after the multiple runs')
+parser.add_argument('--truncated_mlp', type=str, default='false',
+                    help='Whether to detach the first hidden layer in the Stepwise MLP model')
 parser.add_argument('--order_ctx', type=str, default='first',
                     help='Use context/axis as first or last input in the recurrent cortical system')
 parser.add_argument('--N_responses', type=str, default='one',
@@ -126,6 +126,7 @@ def main(args):
         elif args.cortical_model=='stepwisemlp':
             print('Cortical system is running with a StepwiseMLP')
             cortical_system = StepwiseCorticalSystem(use_images=args.use_images) 
+            cortical_system.truncated_mlp = args.truncated_mlp
         elif args.cortical_model=='rnncell':
             print('Cortical system is running with a RNNCell')
             cortical_system = RNNCell(use_images=args.use_images, 
