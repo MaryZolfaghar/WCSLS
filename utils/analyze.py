@@ -326,6 +326,18 @@ def analyze_cortical(model, test_data, analyze_loader, args):
                'hiddens_inc_c': hiddens_inc_c} # mlp/rnn: [288, 128] or stepwisedmlp: [n_hidd=2, 288, 128]
     return results
 
+def analyze_accs(args, test_data, cortical_result, dist_results):
+    resutls = {'train_acc': cortical_result['train_acc'],
+              'test_acc': cortical_result['test_acc'],
+              'cong_train_acc': cortical_result['cong_train_acc'],
+              'incong_train_acc': cortical_result['incong_train_acc'],
+              'cong_test_acc': cortical_result['cong_test_acc'],
+              'incong_test_acc': cortical_result['incong_test_acc']}
+    return resutls
+    
+    # cortical_analyze_acc = cortical_result['analyze_acc']
+    # cortical_analyze_correct = cortical_result['analyze_correct']
+
 def proportions(args, test_data, cortical_result, dist_results):
     hiddens_ctxs = cortical_result['hiddens_ctxs'] # list of len [n_ctx]
     hiddens_ctxs = [np.concatenate(h, axis=0) for h in hiddens_ctxs] # list of len [n_ctx] each has either [192,128] or [224,128]

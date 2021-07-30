@@ -38,7 +38,7 @@ parser.add_argument('--lr_episodic', type=float, default=0.001,
 # Cortical system
 parser.add_argument('--use_images', action='store_false',
                     help='Use full face images and CNN for cortical system')
-parser.add_argument('--cortical_model', type=str, default='rnncell',
+parser.add_argument('--cortical_model', type=str, default='mlp',
                     help='Use a recurrent neural network (LSTM) or MLP for cortical system')
 parser.add_argument('--cortical_task', type=str, default='face_task',
                     help='The task for the cortical model - either face_task or wine_task')
@@ -50,7 +50,7 @@ parser.add_argument('--bs_cortical', type=int, default=32,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
                     help='Learning rate for cortical system')
-parser.add_argument('--nruns_cortical', type=int, default=1, # 20
+parser.add_argument('--nruns_cortical', type=int, default=2, # 20
                     help='Number of runs for cortical system')
 parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
@@ -111,8 +111,10 @@ def main(args):
     # Cortical system: Train, test, analyze (PCA, correlation)
     meta = False # cortical learning is vanilla
     cortical_runs = []
+    # train_acc_runs, test_acc_runs = [], []
     for run in range(args.nruns_cortical):
         cortical_run = []
+        # train_acc_run, test_acc_run = [], []
         if args.cortical_model=='rnn':
             print('Cortical system is running with an LSTM')
             cortical_system = RecurrentCorticalSystem(use_images=args.use_images, N_contexts=args.N_contexts)
@@ -140,6 +142,7 @@ def main(args):
                           N_contexts=args.N_contexts, 
                           cortical_task=args.cortical_task)
         train_data, train_loader, test_data, test_loader, analyze_data, analyze_loader = data
+        args.loc2idx = test_data.loc2idx
         # model
         model = cortical_system
         model.train()
@@ -221,15 +224,19 @@ def main(args):
                     ave_loss1 = []
                     ave_loss2 = []
 
-                if i % args.checkpoints == 0:
-                    cortical_train_acc, _ = test(meta, cortical_system, train_loader, args)
-                    cortical_test_acc, _ = test(meta, cortical_system, test_loader, args)
+                if i % args.checkpoints == 0: 
+                    cortical_train_acc, _ , cong_train_acc, incong_train_acc = test(meta, cortical_system, train_loader, args)
+                    cortical_test_acc, _, cong_test_acc, incong_test_acc  = test(meta, cortical_system, test_loader, args)
                     cortical_system.analyze=True
-                    cortical_analyze_acc, cortical_analyze_correct = test(meta, cortical_system, analyze_loader, args)
+                    cortical_analyze_acc, cortical_analyze_correct, _, _ = test(meta, cortical_system, analyze_loader, args)
                     cortical_system.analyze=False
                     cortical_result = analyze_cortical(cortical_system, test_data, analyze_loader, args)
                     cortical_result['train_acc'] = cortical_train_acc
                     cortical_result['test_acc'] = cortical_test_acc
+                    cortical_result['cong_train_acc'] = cong_train_acc
+                    cortical_result['incong_train_acc'] = incong_train_acc
+                    cortical_result['cong_test_acc'] = cong_test_acc
+                    cortical_result['incong_test_acc'] = incong_test_acc
                     cortical_result['analyze_acc'] = cortical_analyze_acc,
                     cortical_result['analyze_correct'] = cortical_analyze_correct,
                     cortical_run.append(cortical_result)
@@ -248,8 +255,8 @@ def main(args):
     print('num of runs: ', len(cortical_runs))
     # cortical_train_losses, cortical_system = train(meta, cortical_system, train_loader, args)
     cortical_train_losses = train_losses
-    cortical_train_acc, _ = test(meta, cortical_system, train_loader, args)
-    cortical_test_acc, _ = test(meta, cortical_system, test_loader, args)
+    cortical_train_acc, _, _, _ = test(meta, cortical_system, train_loader, args)
+    cortical_test_acc, _, _, _ = test(meta, cortical_system, test_loader, args)
     # cortical_system.analyze=True
     # cortical_analyze_acc, cortical_analyze_correct = test(meta, cortical_system, analyze_loader, args)
     # cortical_system.analyze=False
@@ -273,18 +280,18 @@ def main(args):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    analysis_names = ['hist_data', 'calc_ratio', \
+    analysis_names = ['analyze_accs', 'hist_data', 'calc_ratio', \
                       'analyze_dim_red', 'analyze_ttest', 'analyze_corr', \
                       'analyze_regression', 'analyze_regression_1D', \
                       'analyze_regression_exc', 'analyze_test_seq', 'proportions']
 
-    analysis_funcs = [hist_data, calc_ratio, \
+    analysis_funcs = [analyze_accs, hist_data, calc_ratio, \
                       analyze_dim_red, analyze_ttest, analyze_corr, \
                       analyze_regression, analyze_regression_1D, \
                       analyze_regression_exc, analyze_test_seq, proportions]
-    # analysis_names = ['analyze_dim_red']
+    # analysis_names = ['analyze_accs']
 
-    # analysis_funcs = [analyze_dim_red]
+    # analysis_funcs = [analyze_accs]
 
     args.analysis_names = analysis_names
     args.analysis_funcs = analysis_funcs

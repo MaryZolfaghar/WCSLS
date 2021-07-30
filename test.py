@@ -1,12 +1,14 @@
 import numpy as np
 import torch 
 from itertools import permutations
+from utils.util import is_congruent
 
 def test(meta, model, loader, args):
     model.eval()
     with torch.no_grad():
         correct = []
-        correct1, correct2 = ([] for i in range(2))
+        cong_correct, incong_correct = [], []
+        correct1, correct2 = [], []
         for batch in loader:
             if meta:
                 m, x_ = batch
@@ -62,6 +64,12 @@ def test(meta, model, loader, args):
                 c = (preds == y)
                 c = c.cpu().numpy().tolist()
                 correct += c
+                for i, (i1, i2) in enumerate(zip(idx1, idx2)): # idx1 and 2 comes in a batch
+                    cong = is_congruent(args, i1, i2)
+                    if cong==1:
+                        cong_correct.append(c[i])
+                    if cong==-1:
+                        incong_correct.append(c[i])
             elif args.N_responses == 'two':
                 c1 = (preds1 == y1)
                 c1 = c1.cpu().numpy().tolist()
@@ -72,8 +80,10 @@ def test(meta, model, loader, args):
                 correct = [correct1, correct2]
     if args.N_responses == 'one':
         acc = np.mean(correct, axis=0)
+        cong_acc = np.mean(cong_correct, axis=0)
+        incong_acc = np.mean(incong_correct, axis=0)
     elif args.N_responses == 'two':
         acc1 = np.mean(correct1, axis=0)
         acc2 = np.mean(correct2, axis=0)
         acc = [acc1, acc2]
-    return acc, correct
+    return acc, correct, cong_acc, incong_acc

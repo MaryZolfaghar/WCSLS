@@ -24,4 +24,18 @@ def dict_to_list(results, analyze_name):
                 
             runs[k][r] = v
     return runs
-            
+
+def is_congruent(args, idx1, idx2):      
+    loc2idx = args.loc2idx 
+    idx2loc = {idx:loc for loc, idx in loc2idx.items()}
+    (x1, y1), (x2, y2) = idx2loc[idx1], idx2loc[idx2]    
+    grid_angle = np.arctan2((y2-y1),(x2-x1))
+    phi = np.sin(2*grid_angle)
+    if np.abs(phi)<1e-5:
+        # for congrunet trials, 
+        # zero out those very close to zero angles
+        # so it won't turn into 1 or -1 by sign
+        cong = 0
+    else:
+        cong = np.sign(phi) # 1: congruent, -1:incongruent, 0:none
+    return cong
