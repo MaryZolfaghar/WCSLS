@@ -237,8 +237,8 @@ def main(args):
                     cortical_result['incong_train_acc'] = incong_train_acc
                     cortical_result['cong_test_acc'] = cong_test_acc
                     cortical_result['incong_test_acc'] = incong_test_acc
-                    cortical_result['analyze_acc'] = cortical_analyze_acc,
-                    cortical_result['analyze_correct'] = cortical_analyze_correct,
+                    cortical_result['analyze_acc'] = cortical_analyze_acc
+                    cortical_result['analyze_correct'] = cortical_analyze_correct
                     cortical_run.append(cortical_result)
 
                 if i >= N:
