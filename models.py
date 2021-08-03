@@ -410,8 +410,8 @@ class StepwiseCorticalSystem(nn.Module):
     def forward(self, f1, f2, ctx):
         f1_embed = self.face_embedding(f1) # [batch, state_dim]
         f2_embed = self.face_embedding(f2) # [batch, state_dim]
-        ctx_embed = self.ctx_embedding(ctx)
-
+        self.ctx_embed = self.ctx_embedding(ctx)
+        
         # if self.order_ctx == 'last':
         #     x1 = torch.cat([ctx_embed, f1_embed], dim=1)
         #     # x = torch.cat([f1_embed, f2_embed, ctx_embed], dim=0)
@@ -419,7 +419,7 @@ class StepwiseCorticalSystem(nn.Module):
         #     x1 = torch.cat([ctx_embed, f1_embed], dim=1)
         #     # x = torch.cat([ctx_embed, f1_embed, f2_embed], dim=0)
 
-        x1 = torch.cat([ctx_embed, f1_embed], dim=1)
+        x1 = torch.cat([self.ctx_embed, f1_embed], dim=1)
         hidd1 = self.hidden1(x1) # [batch, hidden1_dim]
         hidd1 = self.relu(hidd1) # [batch, hidden1_dim]
         

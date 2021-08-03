@@ -8,6 +8,7 @@ def train(meta, model, loader, args):
     model.train()
 
     # loss function
+    # reduction = 'none', them you have a vecot
     loss_fn = nn.CrossEntropyLoss()
     loss_fn.to(args.device)
 
@@ -43,6 +44,14 @@ def train(meta, model, loader, args):
                     y = y1
                 loss = loss_fn(y_hat, y)
                 loss1 = loss2 = []
+                # ToDo: for i in range(batch_size):
+                    # output = torch.zeros(batch_size,1)                                                                                                          
+                    # output[i] = 1.
+                    # x = model.ctx_embed
+                    # y = loss
+                    #alt: torch.jaccobian[]
+                    # jacT[:,i:i+1] = torch.autograd.grad(y, x, grad_outputs=output, retain_graph=True)[0]
+                # loss = loss.sum
             if args.N_responses == 'two':
                 y_hat1 = y_hat[0] # [batch, 2]
                 y_hat2 = y_hat[1] # [batch, 2]

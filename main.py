@@ -9,7 +9,6 @@ from dataset import get_loaders
 from models import *
 from train import train
 from test import test
-# from analyze import analyze_episodic, analyze_cortical, analyze_cortical_mruns
 from run_analyze import run_analyze
 from utils.analyze import *
 
@@ -64,12 +63,6 @@ parser.add_argument('--N_contexts', type=int, default=2,
                     help='Number of contexts')
 parser.add_argument('--dimred_method', type=str, default='pca',
                     help='Dimentionality reduction method')
-# ToDo: the training day experiment is not complete yet, I only changed the dataset.py
-# I need to change the main.py as well, I created the main_V2.py and changed train.py 
-# The issue is in the main_V2 there is a loop, and the optimizer stuff should be zero_grade outside that loop
-# But now I have train inside the loop and zero_grade stuff happens inside the loop which is wrong, 
-# parser.add_argument('--training_day', type=str, default='day3',
-                    # help='Training on day1 or day1_day2 or day3 (all the training data')
 
 
 def main(args):
@@ -167,8 +160,7 @@ def main(args):
         i = 0
         done = False
         while not done:
-            # Todo: change this back to train_loader
-            # for batch in analyze_loader:
+            # Todo: check this for batch in analyze_loader:
             for batch in train_loader:
                 optimizer.zero_grad()
                 if meta:
@@ -261,7 +253,6 @@ def main(args):
     # cortical_analyze_acc, cortical_analyze_correct = test(meta, cortical_system, analyze_loader, args)
     # cortical_system.analyze=False
 
-    # cortical_mrun_results = analyze_cortical_mruns(cortical_runs, test_data, args)
     cortical_mrun_results = run_analyze(args, test_data, cortical_runs)
     cortical_results = {'loss': cortical_train_losses,
                         'train_acc': cortical_train_acc,
@@ -289,12 +280,16 @@ if __name__ == '__main__':
                       analyze_dim_red, analyze_ttest, analyze_corr, \
                       analyze_regression, analyze_regression_1D, \
                       analyze_regression_exc, analyze_test_seq, proportions]
-    # analysis_names = ['analyze_accs']
-
-    # analysis_funcs = [analyze_accs]
-
+    
     args.analysis_names = analysis_names
     args.analysis_funcs = analysis_funcs
 
     print(args)
     main(args)
+
+    # ToDo: the training day experiment is not complete yet, I only changed the dataset.py
+    # I need to change the main.py as well, I created the main_V2.py and changed train.py 
+    # The issue is in the main_V2 there is a loop, and the optimizer stuff should be zero_grade outside that loop
+    # But now I have train inside the loop and zero_grade stuff happens inside the loop which is wrong, 
+    # parser.add_argument('--training_day', type=str, default='day3',
+                        # help='Training on day1 or day1_day2 or day3 (all the training data')
