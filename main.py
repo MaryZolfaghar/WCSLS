@@ -45,6 +45,8 @@ parser.add_argument('--image_dir', default='images/',
                     help='Path to directory containing face images')
 parser.add_argument('--N_cortical', type=int, default=1000,
                     help='Number of steps for training cortical system')
+parser.add_argument('--balanced', action='store_true',
+                    help='Balance wins and losses of each face other than (0,0), (3,3). Only works with wine dataset')                 
 parser.add_argument('--bs_cortical', type=int, default=32,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
@@ -133,7 +135,8 @@ def main(args):
                           use_images=args.use_images, image_dir=args.image_dir,
                           n_episodes=None, N_responses=args.N_responses, 
                           N_contexts=args.N_contexts, 
-                          cortical_task=args.cortical_task)
+                          cortical_task=args.cortical_task,
+                          balanced = args.balanced)
         train_data, train_loader, test_data, test_loader, analyze_data, analyze_loader = data
         args.loc2idx = test_data.loc2idx
         # model

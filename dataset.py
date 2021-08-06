@@ -415,10 +415,14 @@ class GridMetaDataset(Dataset):
         return train_episode, test_episode
 
 class WineGrid:
-    def __init__(self, N_responses, N_contexts):
+    def __init__(self, N_responses, N_contexts, balanced = False):
         self.size = 4
         self.N_responses = N_responses
         self.N_contexts = N_contexts
+        if balanced:
+            msg = 'balancing only implemented for one response, two contexts'
+            assert N_responses == 'one' and N_contexts == 2, msg
+        self.balanced = balanced
 
         locs = [(i,j) for i in range(self.size) for j in range(self.size)]
         # Generate all the permutations of the pairs
@@ -491,6 +495,9 @@ class WineGrid:
         self.n_test = len(self.test)
         self.n_all_perms = len(self.all_perms)
 
+        if balanced:
+            self.balance_train()
+
     def ctx_to_r(self, ctx, loc1, loc2):
         loc1 = (loc1[0]+1, loc1[1]+1)
         loc2 = (loc2[0]+1, loc2[1]+1)
@@ -519,6 +526,7 @@ class WineGrid:
             r1 = (5-loc1[0])*loc1[1]
             r2 = (5-loc2[0])*loc2[1]
         return r1, r2
+
     def add_sample(self, all_perms, test, train, r1, r2, f1, f2, ctx, y2=-1):
         d = r1 - r2
         if d!=0:
@@ -528,6 +536,26 @@ class WineGrid:
                 test.append((f1, f2, ctx, y1, y2))
             elif abs(d)==1:
                 train.append((f1, f2, ctx, y1, y2))
+    
+    def balance_train(self):
+        # Extra wins
+        wins1 = [((0,0),(0,1),1,0,-1)] * 4 + [((0,1),(0,0),1,1,-1)] * 4
+        wins2 = [((0,0),(0,2),1,0,-1)] * 4 + [((0,2),(0,0),1,1,-1)] * 4
+        wins3 = [((0,0),(1,0),0,0,-1)] * 4 + [((1,0),(0,0),0,1,-1)] * 4
+        wins4 = [((0,0),(2,0),0,0,-1)] * 4 + [((2,0),(0,0),0,1,-1)] * 4
+        wins = wins1 + wins2 + wins3 + wins4
+
+        # Extra losses
+        losses1 = [((3,3),(3,2),1,1,-1)] * 4 + [((3,2),(3,3),1,0,-1)] * 4
+        losses2 = [((3,3),(3,1),1,1,-1)] * 4 + [((3,1),(3,3),1,0,-1)] * 4
+        losses3 = [((3,3),(2,3),0,1,-1)] * 4 + [((2,3),(3,3),0,0,-1)] * 4
+        losses4 = [((3,3),(1,3),0,1,-1)] * 4 + [((1,3),(3,3),0,0,-1)] * 4
+        losses = losses1 + losses2 + losses3 + losses4
+
+        # Extras
+        extra = wins + losses
+        self.train += extra
+
 
 class WineGridDataset(Dataset):
     """
@@ -539,12 +567,16 @@ class WineGridDataset(Dataset):
         y2   : correct answer for response 2, always either 0 or 1
     """
     def __init__(self, testing, analyzing, N_contexts, N_responses,
-                 use_images, image_dir = None):
+                 use_images, image_dir = None, balanced = False):
         self.testing = testing       # use test set
         self.analyzing = analyzing   # use all the permutations - random split 
         self.use_images = use_images # use images rather than one-hot vectors
         self.image_dir = image_dir   # directory with images
-        self.grid = WineGrid(N_responses, N_contexts)
+        self.balanced = balanced     # faces get same wins/losses
+        msg = 'N_responses is a string (e.g., "one") and N_contexts is an int'
+        assert isinstance(N_responses, str) and isinstance(N_contexts, int), msg
+        self.grid = WineGrid(N_responses, N_contexts, balanced)
+        
 
         # Create 1 fixed mapping from locs to idxs
         locs = self.grid.locs 
@@ -621,7 +653,7 @@ def wine_grid_collate(samples):
     return f1_batch, f2_batch, ctx_batch, y1_batch, y2_batch, idx1_batch, idx2_batch
 
 def get_loaders(batch_size, meta, use_images, image_dir, n_episodes, \
-                N_responses, N_contexts, cortical_task):
+                N_responses, N_contexts, cortical_task, balanced):
     if meta:
         # Train
         train_data = GridMetaDataset(testing=False, n_episodes=n_episodes)
@@ -652,7 +684,8 @@ def get_loaders(batch_size, meta, use_images, image_dir, n_episodes, \
         # Train
         train_data = WineGridDataset(testing=False, analyzing=False, 
                                      N_contexts=N_contexts, N_responses=N_responses,
-                                     use_images=use_images, image_dir=image_dir)
+                                     use_images=use_images, image_dir=image_dir,
+                                     balanced=balanced)
         train_loader = DataLoader(train_data, batch_size=batch_size,
                                   shuffle=True, collate_fn=wine_grid_collate)
         # Test
