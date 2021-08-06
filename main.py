@@ -128,6 +128,12 @@ def main(args):
             print('Cortical system is running with a RNNCell')
             cortical_system = RNNCell(use_images=args.use_images, 
                                       N_contexts=args.N_contexts)
+        elif args.cortical_model == 'mlp_cc': # mlp as a cognitive controller
+            print('Cortical system is running with a CognitiveController')
+            cortical_system = CognitiveController(use_images=args.use_images,
+                                                  N_responses=args.N_responses,
+                                                  N_contexts=args.N_contexts)
+
                        
         cortical_system.to(device)
 

@@ -270,7 +270,7 @@ def analyze_cortical(model, test_data, analyze_loader, args):
                     # avg_hidden_ctxs[ctx, f, :] = np.concatenate(temp1_ctxs + temp2_ctxs, axis=0).mean(axis=0)
                     # avg_hidden_ctxs: [n_ctx, n_states, hidden_dim]: [2, 16, 128] 
         avg_hidden_ctx = np.concatenate(avg_hidden_ctxs, axis=0)
-    elif args.cortical_model=='mlp':
+    elif args.cortical_model in ['mlp', 'mlp_cc']:
         for f in range(n_states):
             temp = [hiddens[i,:] 
                         for i, (idx1, idx2) in enumerate(zip(idxs1, idxs2))

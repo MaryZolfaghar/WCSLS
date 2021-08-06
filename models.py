@@ -435,3 +435,68 @@ class StepwiseCorticalSystem(nn.Module):
         return x, hidd
 
 
+class CognitiveController(nn.Module):
+    def __init__(self, use_images, N_responses, N_contexts):
+        super(CognitiveController, self).__init__()
+        self.use_images = use_images
+        self.n_rsp = N_responses
+        self.n_ctx = N_contexts
+
+        # Hyperparameters
+        self.n_states = 16
+        self.state_dim = 32
+        self.mlp_in_dim = 2*self.state_dim # f1+f2 (context treated separately)
+        self.hidden_dim = 128
+        msg = "hidden_dim must be divisible by N_contexts"
+        assert self.hidden_dim % N_contexts == 0, msg
+        self.h_dim = self.hidden_dim // N_contexts
+        self.output_dim = 2
+        self.analyze = False
+        
+
+        # Input embedding (images or one-hot)
+        if self.use_images:
+            self.face_embedding = CNN(self.state_dim)
+        else:
+            self.face_embedding = nn.Embedding(self.n_states, self.state_dim)
+            nn.init.xavier_normal_(self.face_embedding.weight)
+            
+        self.ctx_embedding = nn.Embedding(N_contexts, self.state_dim)
+        nn.init.xavier_normal_(self.ctx_embedding.weight)
+
+        # MLP
+        self.control = nn.Linear(self.state_dim, N_contexts)
+        self.linear = nn.Linear(self.mlp_in_dim, self.hidden_dim)
+        self.out1 = nn.Linear(self.hidden_dim, self.output_dim)
+        if N_responses == 'two':
+            self.out2 = nn.Linear(self.hidden_dim, self.output_dim)
+        self.relu = nn.ReLU()
+        self.softmax = nn.Softmax(dim=1)
+        
+    def forward(self, f1, f2, ctx):
+        batch = f1.shape[0]
+
+        # Embed inputs
+        f1_embed = self.face_embedding(f1) # [batch, state_dim]
+        f2_embed = self.face_embedding(f2) # [batch, state_dim]
+        ctx_embed = self.ctx_embedding(ctx) # [batch, state_dim]
+        
+        # Hidden
+        x = torch.cat([f1_embed, f2_embed], dim=1) # [batch, 2*state_dim]
+        hidden = self.relu(self.linear(x)) # [batch, hidden]
+        hidden = hidden.view(batch, self.h_dim, self.n_ctx) 
+        # hidden: [batch, hidd//n_ctx, n_ctx]
+
+        # Control
+        control_signal = self.softmax(self.control(ctx_embed)) # [batch, n_ctx]
+        control_signal = control_signal.unsqueeze(1) # [batch, 1, n_ctx]
+        hidden = hidden * control_signal # [batch, hidd//n_ctx, n_ctx]
+        
+        # Output
+        hidden = hidden.view(batch,-1) # [batch, hidd]
+        output = self.out1(hidden) # [batch, output_dim]
+        if self.n_rsp == 'two':
+            output2 = self.out2(hidden) # [batch, output_dim]
+            output = [output, output2]
+    
+        return output, hidden
