@@ -449,7 +449,7 @@ class CognitiveController(nn.Module):
         self.hidden_dim = 128
         msg = "hidden_dim must be divisible by N_contexts"
         assert self.hidden_dim % N_contexts == 0, msg
-        self.h_dim = self.hidden_dim // N_contexts
+        self.h_dim = self.hidden_dim // N_contexts # neurons per group in hidden
         self.output_dim = 2
         self.analyze = False
         
@@ -483,17 +483,17 @@ class CognitiveController(nn.Module):
         
         # Hidden
         x = torch.cat([f1_embed, f2_embed], dim=1) # [batch, 2*state_dim]
-        hidden = self.relu(self.linear(x)) # [batch, hidden]
+        hidden = self.relu(self.linear(x)) # [batch, hidden_dim]
         hidden = hidden.view(batch, self.h_dim, self.n_ctx) 
-        # hidden: [batch, hidd//n_ctx, n_ctx]
+        # hidden: [batch, hidden_dim // n_ctx, n_ctx]
 
         # Control
         control_signal = self.softmax(self.control(ctx_embed)) # [batch, n_ctx]
         control_signal = control_signal.unsqueeze(1) # [batch, 1, n_ctx]
-        hidden = hidden * control_signal # [batch, hidd//n_ctx, n_ctx]
+        hidden = hidden * control_signal # [batch, hidden_dim // n_ctx, n_ctx]
         
         # Output
-        hidden = hidden.view(batch,-1) # [batch, hidd]
+        hidden = hidden.view(batch,-1) # [batch, hidden_dim]
         output = self.out1(hidden) # [batch, output_dim]
         if self.n_rsp == 'two':
             output2 = self.out2(hidden) # [batch, output_dim]
