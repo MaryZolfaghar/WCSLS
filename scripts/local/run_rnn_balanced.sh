@@ -19,6 +19,6 @@ python main.py \
 --lr_cortical 0.001 \
 --checkpoints 50 \
 --N_responses 'one' \
---N_contexts 'two' \
+--N_contexts 2 \
 --dimred_method 'pca' \
 --out_file 'results_rnn_balanced.P' \
