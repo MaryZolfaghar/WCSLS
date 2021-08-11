@@ -475,13 +475,8 @@ class CognitiveController(nn.Module):
         self.mlp_in_dim = 2*self.state_dim # f1+f2 (context treated separately)
         self.hidden_dim = 128
         msg = "hidden_dim must be divisible by N_contexts"
-<<<<<<< HEAD
         assert self.hidden_dim % self.N_contexts == 0, msg
-        self.h_dim = self.hidden_dim // self.N_contexts
-=======
-        assert self.hidden_dim % N_contexts == 0, msg
-        self.h_dim = self.hidden_dim // N_contexts # neurons per group in hidden
->>>>>>> a03d00e25be72677ed98bdcdcfc874400c80bda4
+        self.h_dim = self.hidden_dim // self.N_contexts # neurons per group in hidden
         self.output_dim = 2
         self.analyze = False
         
@@ -518,13 +513,8 @@ class CognitiveController(nn.Module):
             self.ctx_embed = torch.tensor(self.lesion_p) * self.ctx_embed
 
         # Hidden
-<<<<<<< HEAD
         x = torch.cat([self.f1_embed, self.f2_embed], dim=1) # [batch, 2*state_dim]
-        hidden = self.relu(self.linear(x)) # [batch, hidden]
-=======
-        x = torch.cat([f1_embed, f2_embed], dim=1) # [batch, 2*state_dim]
         hidden = self.relu(self.linear(x)) # [batch, hidden_dim]
->>>>>>> a03d00e25be72677ed98bdcdcfc874400c80bda4
         hidden = hidden.view(batch, self.h_dim, self.n_ctx) 
         # hidden: [batch, hidden_dim // n_ctx, n_ctx]
 
