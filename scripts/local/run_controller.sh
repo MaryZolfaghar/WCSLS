@@ -11,6 +11,7 @@ python main.py \
 --truncated_mlp 'false' \
 --out_file 'results_mlp_cc.P' \
 --seed 0 \
+--use_images \
 --print_every 200 \
 --N_episodic 1000 \
 --bs_episodic 16 \

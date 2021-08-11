@@ -1,4 +1,5 @@
 import argparse
+from numpy.lib.function_base import gradient
 import torch 
 import torch.nn as nn
 import pickle
@@ -11,6 +12,7 @@ from train import train
 from test import test
 from run_analyze import run_analyze
 from utils.analyze import *
+from utils.util import *
 
 # To ignore printing all the RuntimeWarnings
 # Since, we are aware that we have "divide by NaN". 
@@ -35,9 +37,9 @@ parser.add_argument('--bs_episodic', type=int, default=16,
 parser.add_argument('--lr_episodic', type=float, default=0.001,
                     help='Learning rate for episodic system')
 # Cortical system
-parser.add_argument('--use_images', action='store_false',
+parser.add_argument('--use_images', action='store_true',
                     help='Use full face images and CNN for cortical system')
-parser.add_argument('--cortical_model', type=str, default='mlp',
+parser.add_argument('--cortical_model', type=str, default='rnn',
                     help='Use a recurrent neural network (LSTM) or MLP for cortical system')
 parser.add_argument('--cortical_task', type=str, default='face_task',
                     help='The task for the cortical model - either face_task or wine_task')
@@ -45,13 +47,13 @@ parser.add_argument('--image_dir', default='images/',
                     help='Path to directory containing face images')
 parser.add_argument('--N_cortical', type=int, default=1000,
                     help='Number of steps for training cortical system')
-parser.add_argument('--balanced', action='store_true',
+parser.add_argument('--balanced', action='store_true', # ToDo:change this to store_true
                     help='Balance wins and losses of each face other than (0,0), (3,3). Only works with wine dataset')                 
 parser.add_argument('--bs_cortical', type=int, default=32,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
                     help='Learning rate for cortical system')
-parser.add_argument('--nruns_cortical', type=int, default=2, # 20
+parser.add_argument('--nruns_cortical', type=int, default=1, # 20
                     help='Number of runs for cortical system')
 parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
@@ -65,6 +67,12 @@ parser.add_argument('--N_contexts', type=int, default=2,
                     help='Number of contexts')
 parser.add_argument('--dimred_method', type=str, default='pca',
                     help='Dimentionality reduction method')
+parser.add_argument('--measure_grad_norm', action='store_true',
+                    help='Whether measuring the gradient w.r.t the inputs')
+parser.add_argument('--is_lesion', action='store_true',
+                    help='Ablate context')
+parser.add_argument('--lesion_p', type=float, default=0.1,
+                    help='Lesion probability')
 
 
 def main(args):
@@ -107,32 +115,34 @@ def main(args):
     meta = False # cortical learning is vanilla
     cortical_runs = []
     # train_acc_runs, test_acc_runs = [], []
+    n_gradients_ctx, n_gradients_f1, n_gradients_f2 = [], [], []
+    n_gradients_ctx_cong, n_gradients_f1_cong, n_gradients_f2_cong = [], [], []
+    n_gradients_ctx_incong, n_gradients_f1_incong, n_gradients_f2_incong = [], [], []
+    gradient_samples = []
     for run in range(args.nruns_cortical):
+        n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
+        n_gradient_ctx_cong, n_gradient_f1_cong, n_gradient_f2_cong = [], [], []
+        n_gradient_ctx_incong, n_gradient_f1_incong, n_gradient_f2_incong = [], [], []
         cortical_run = []
         # train_acc_run, test_acc_run = [], []
         if args.cortical_model=='rnn':
             print('Cortical system is running with an LSTM')
-            cortical_system = RecurrentCorticalSystem(use_images=args.use_images, N_contexts=args.N_contexts)
+            cortical_system = RecurrentCorticalSystem(args)
             # Use context/axis as the last one in the sequence
             cortical_system.order_ctx = args.order_ctx
         elif args.cortical_model=='mlp':
             print('Cortical system is running with an MLP')
-            cortical_system = CorticalSystem(use_images=args.use_images, 
-                                             N_responses=args.N_responses,
-                                             N_contexts=args.N_contexts)
+            cortical_system = CorticalSystem(args)
         elif args.cortical_model=='stepwisemlp':
             print('Cortical system is running with a StepwiseMLP')
-            cortical_system = StepwiseCorticalSystem(use_images=args.use_images) 
-            cortical_system.truncated_mlp = args.truncated_mlp
+            cortical_system = StepwiseCorticalSystem(args) 
+            # cortical_system.truncated_mlp = args.truncated_mlp
         elif args.cortical_model=='rnncell':
             print('Cortical system is running with a RNNCell')
-            cortical_system = RNNCell(use_images=args.use_images, 
-                                      N_contexts=args.N_contexts)
+            cortical_system = RNNCell(args)
         elif args.cortical_model == 'mlp_cc': # mlp as a cognitive controller
             print('Cortical system is running with a CognitiveController')
-            cortical_system = CognitiveController(use_images=args.use_images,
-                                                  N_responses=args.N_responses,
-                                                  N_contexts=args.N_contexts)
+            cortical_system = CognitiveController(args)
 
                        
         cortical_system.to(device)
@@ -149,7 +159,11 @@ def main(args):
         model = cortical_system
         model.train()
         # loss function
-        loss_fn = nn.CrossEntropyLoss()
+        # Todo: add "measure_grad_norm" to the args 
+        if args.measure_grad_norm:
+            loss_fn = nn.CrossEntropyLoss(reduction='none') # [batch]
+        else:
+            loss_fn = nn.CrossEntropyLoss()
         loss_fn.to(args.device)
 
         # optimizer
@@ -196,7 +210,7 @@ def main(args):
                     if (args.N_responses == 'one'):
                         if args.cortical_task == 'wine_task':
                             y = y1
-                        loss = loss_fn(y_hat, y)
+                        loss = loss_fn(y_hat, y) # if reduction = 'none' : [batch], if reduction='mean': scaler
                     if args.N_responses == 'two':
                         y_hat1 = y_hat[0] # [batch, 2]
                         y_hat2 = y_hat[1] # [batch, 2]
@@ -208,12 +222,73 @@ def main(args):
                         ave_loss1.append(loss1.data.item())
                         ave_loss2.append(loss2.data.item())
                 
-                loss.backward()
-                optimizer.step()
-                # Record loss
-                train_losses.append(loss.data.item())
-                ave_loss.append(loss.data.item())
+                
+                if args.measure_grad_norm: 
+                    loss.backward(torch.ones_like(loss))
+                    # Record loss
+                    train_losses.append(torch.mean(loss.data))
+                    ave_loss.append(torch.mean(loss.data))
+                else:
+                    loss.backward()
+                    # Record loss
+                    train_losses.append(loss.data.item())
+                    ave_loss.append(loss.data.item())
 
+                optimizer.step()
+                
+                if args.measure_grad_norm:
+                    batch_size = args.bs_cortical
+                    for si in batch:
+                        if args.cortical_task == 'face_task':
+                            f1, f2, ctx, y, idx1, idx2 = si # face1, face2, context, y, index1, index2
+                        elif args.cortical_task == 'wine_task':
+                            f1, f2, ctx, y1, y2, idx1, idx2 = si 
+                        # # 1: congruent, -1:incongruent, 0:none
+                        # cong = get_congruency(args, idx1, idx2)
+                        # avg norm per batch, regardless of congruency 
+                        # and norm per samle : 32*1000 batch_size*N_cortical
+                        # have a seaprate list for cong and incong (1 and -1)
+                        
+                        # first avg over the checkpoint (which implicity avg over batch as well)
+                        
+                        # 1 per checkpoint for cong anv one for incong
+                        # lists: one for all, one for cong, one for incong, 
+                        # ties would be appended to all 
+                        # append per sample 
+                        # after each checkpoint, avg each of those inner lists and append to the 
+                        # corresponding three outter lists.
+                        # total 9 outter and inner lists 
+                        
+                        
+                        output = torch.zeros(batch_size,1)                                                                                                          
+                        output[si] = 1.
+                        # x = model.ctx_embed
+                        y = loss
+                        grd = torch.autograd.grad(y, model.ctx_embed, grad_outputs=output, retain_graph=True)[0]
+                        n_grd_ctx  = torch.linalg.norm(grd)
+                        n_gradient_ctx.append(n_grd_ctx.numpy())
+
+                        grd = torch.autograd.grad(y, model.f1_embed, grad_outputs=output, retain_graph=True)[0]
+                        n_grd_f1  = torch.linalg.norm(grd)
+                        n_gradient_f1.append(n_grd_f1.numpy())
+
+                        grd = torch.autograd.grad(y, model.f2_embed, grad_outputs=output, retain_graph=True)[0]
+                        n_grd_f2  = torch.linalg.norm(grd)
+                        n_gradient_f2.append(n_grd_f2.numpy())
+
+                        # 1: congruent, -1:incongruent, 0:none
+                        cong = get_congruency(args, idx1, idx2)
+                        gradient_samples.append(cong)
+                        if cong==1:
+                            n_gradient_ctx_cong.append(n_grd_ctx.numpy())
+                            n_gradient_f1_cong.append(n_grd_f1.numpy())
+                            n_gradient_f2_cong.append(n_grd_f2.numpy())
+                        if cong==-1:
+                            n_gradient_ctx_incong.append(n_grd_ctx.numpy())
+                            n_gradient_f1_incong.append(n_grd_f1.numpy())
+                            n_gradient_f2_incong.append(n_grd_f2.numpy())
+
+                    loss = loss.sum()
                 if i % args.print_every == 0:
                     if args.N_responses == 'two':
                         print("Run: {}, Step: {}, Loss: {}, Loss1: {}, Loss2: {}".format(run, i, np.mean(ave_loss),
@@ -242,6 +317,18 @@ def main(args):
                     cortical_result['analyze_correct'] = cortical_analyze_correct
                     cortical_run.append(cortical_result)
 
+                    n_gradients_ctx_cong.append(np.mean(n_gradient_ctx_cong))
+                    n_gradients_f1_cong.append(np.mean(n_gradient_f1_cong))
+                    n_gradients_f2_cong.append(np.mean(n_gradient_f2_cong))
+
+                    n_gradients_ctx_incong.append(np.mean(n_gradient_ctx_incong))
+                    n_gradients_f1_incong.append(np.mean(n_gradient_f1_incong))
+                    n_gradients_f2_incong.append(np.mean(n_gradient_f2_incong))
+
+                    n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
+                    n_gradient_ctx_cong, n_gradient_f1_cong, n_gradient_f2_cong = [], [], []
+                    n_gradient_ctx_incong, n_gradient_f1_incong, n_gradient_f2_incong = [], [], []
+
                 if i >= N:
                     done = True 
                     break
@@ -258,10 +345,7 @@ def main(args):
     cortical_train_losses = train_losses
     cortical_train_acc, _, _, _ = test(meta, cortical_system, train_loader, args)
     cortical_test_acc, _, _, _ = test(meta, cortical_system, test_loader, args)
-    # cortical_system.analyze=True
-    # cortical_analyze_acc, cortical_analyze_correct = test(meta, cortical_system, analyze_loader, args)
-    # cortical_system.analyze=False
-
+    
     cortical_mrun_results = run_analyze(args, test_data, cortical_runs)
     cortical_results = {'loss': cortical_train_losses,
                         'train_acc': cortical_train_acc,
@@ -289,6 +373,9 @@ if __name__ == '__main__':
                       analyze_dim_red, analyze_ttest, analyze_corr, \
                       analyze_regression, analyze_regression_1D, \
                       analyze_regression_exc, analyze_test_seq, proportions]
+    
+    # analysis_names = 'analyze_regression_exc'
+    # analysis_funcs = analyze_regression_exc
     
     args.analysis_names = analysis_names
     args.analysis_funcs = analysis_funcs

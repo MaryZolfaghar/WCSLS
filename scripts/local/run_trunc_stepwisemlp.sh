@@ -11,6 +11,7 @@ python main.py \
 --truncated_mlp 'true' \
 --out_file 'results_truncated_stepwisemlp.P' \
 --seed 0 \
+--use_images \
 --print_every 200 \
 --N_episodic 1000 \
 --bs_episodic 16 \

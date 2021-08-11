@@ -573,8 +573,8 @@ class WineGridDataset(Dataset):
         self.use_images = use_images # use images rather than one-hot vectors
         self.image_dir = image_dir   # directory with images
         self.balanced = balanced     # faces get same wins/losses
-        msg = 'N_responses is a string (e.g., "one") and N_contexts is an int'
-        assert isinstance(N_responses, str) and isinstance(N_contexts, int), msg
+        # msg = 'N_responses is a string (e.g., "one") and N_contexts is an int'
+        # assert (N_responses is not None) and (N_contexts is not None) and isinstance(N_responses, str) and isinstance(N_contexts, int), msg
         self.grid = WineGrid(N_responses, N_contexts, balanced)
         
 

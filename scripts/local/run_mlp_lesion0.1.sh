@@ -3,13 +3,15 @@
 # conda activate /Users/Maryam/anaconda3/envs/csls
 # /Users/Maryam/anaconda3/envs/csls
 
-echo "Process stepwise mlp starts"
+echo "Process mlp - lesioned with p 0.1 starts"
 
 python main.py \
---cortical_model 'stepwisemlp' \
+--cortical_model 'mlp' \
 --nruns_cortical 20 \
 --truncated_mlp 'false' \
---out_file 'results_stepwisemlp.P' \
+--is_lesion \
+--lesion_p 0.1 \
+--out_file 'results_mlp_lesionp0.1.P' \
 --seed 0 \
 --use_images \
 --print_every 200 \

@@ -3,14 +3,17 @@
 # conda activate /Users/Maryam/anaconda3/envs/csls
 # /Users/Maryam/anaconda3/envs/csls
 
-echo "Process stepwise mlp starts"
+echo "Process rnn starts - ctx last- lesion p 0.1"
 
 python main.py \
---cortical_model 'stepwisemlp' \
+--cortical_model 'rnn' \
 --nruns_cortical 20 \
---truncated_mlp 'false' \
---out_file 'results_stepwisemlp.P' \
+--order_ctx 'last' \
+--is_lesion \
+--lesion_p 0.1 \
+--out_file 'ctxL_results_rnn_lesionp0.1.P' \
 --seed 0 \
+--truncated_mlp 'false' \
 --use_images \
 --print_every 200 \
 --N_episodic 1000 \
@@ -21,7 +24,6 @@ python main.py \
 --bs_cortical 32 \
 --lr_cortical 0.001 \
 --checkpoints 50 \
---order_ctx 'first' \
 --N_responses 'one' \
 --N_contexts 2 \
 --dimred_method 'pca' \

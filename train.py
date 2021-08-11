@@ -16,6 +16,8 @@ def train(meta, model, loader, args):
     lr = args.lr_episodic if meta else args.lr_cortical
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     
+    n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
+    
     for batch in loader:
         optimizer.zero_grad()
         if meta:
@@ -44,12 +46,29 @@ def train(meta, model, loader, args):
                     y = y1
                 loss = loss_fn(y_hat, y)
                 loss1 = loss2 = []
-                # ToDo: for i in range(batch_size):
-                    # output = torch.zeros(batch_size,1)                                                                                                          
-                    # output[i] = 1.
+                # ToDo: Investigate learning about context
+                # by measuring the norm of the gradient w.r.t. the context 
+                batch_size = y_hat[0]
+                # # jacT = torch.zeros(1,batch_size)
+                # gradient is a vector (state_dim (ctx)), no longer a matrix, loss is the sum of each sample in the batch
+                # one num per step (norm)
+                for i in range(batch_size):
+                    output = torch.zeros(batch_size,1)                                                                                                          
+                    output[i] = 1.
                     # x = model.ctx_embed
-                    # y = loss
-                    #alt: torch.jaccobian[]
+                    y = loss
+                    grd = torch.autograd.grad(y, model.ctx_embed, grad_outputs=output, retain_graph=True)[0]
+                    n_grd  = torch.linalg.norm(grd)
+                    n_gradient_ctx.append(n_grd.numpy())
+
+                    grd = torch.autograd.grad(y, model.f1_embed, grad_outputs=output, retain_graph=True)[0]
+                    n_grd  = torch.linalg.norm(grd)
+                    n_gradient_f1.append(n_grd.numpy())
+
+                    grd = torch.autograd.grad(y, model.f2_embed, grad_outputs=output, retain_graph=True)[0]
+                    n_grd  = torch.linalg.norm(grd)
+                    n_gradient_f2.append(n_grd.numpy())
+                    # alt: torch.jaccobian[]
                     # jacT[:,i:i+1] = torch.autograd.grad(y, x, grad_outputs=output, retain_graph=True)[0]
                 # loss = loss.sum
             if args.N_responses == 'two':

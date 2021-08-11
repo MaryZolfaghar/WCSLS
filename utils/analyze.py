@@ -935,8 +935,9 @@ def analyze_test_seq(args, test_data, cortical_result, dist_results):
     data = get_loaders(batch_size=32, meta=False,
                       use_images=True, image_dir='./images/',
                       n_episodes=None,
-                      N_responses=None, N_contexts=None,
-                      cortical_task='face_task')
+                      N_responses=args.N_responses, N_contexts=args.N_contexts,
+                      cortical_task = args.cortical_task, #ToDo:check why it was set to cortical_task='face_task',
+                      balanced = args.balanced)
     train_data, train_loader, test_data, test_loader, analyze_data, analyze_loader = data
 
     idx2loc = {idx:loc for loc, idx in test_data.loc2idx.items()}
@@ -949,10 +950,12 @@ def analyze_test_seq(args, test_data, cortical_result, dist_results):
 
     hidd_t_idx = 1 # at what time step, t = 1 means at the time of face1 
                                 # and t = 2 means at the time of face2
-                                # in axis First, it should be t = 1
+                                # in axis First (axis is at t=0), it should be t = 1
     # create groups based on the row or columns
     # e.g, for context0 (xaxis), first column is group 1, sec col is group 2, and so on.
     # 4 groups for each axis/context; total 8 groups
+
+    # ToDo: why it is always loc1???
 
     ctx0_g0=[]
     ctx0_g1=[]
@@ -965,23 +968,32 @@ def analyze_test_seq(args, test_data, cortical_result, dist_results):
     ctx1_g3=[]
 
     for i, batch in enumerate(analyze_loader):
-        f1, f2, ax, y, idx1, idx2 = batch
+        if args.cortical_task == 'face_task':
+            f1, f2, ctx, y, idx1, idx2 = batch # face1, face2, context, y, index1, index2
+        elif args.cortical_task == 'wine_task':
+            f1, f2, ctx, y1, y2, idx1, idx2 = batch # face1, face2, context, y1, y2, index1, index2        
+            msg = 'analyze_test_seq is only implemented for one response, two contexts'
+            assert args.N_responses == 'one' and args.N_contexts == 2, msg
+
+            if args.N_responses == 'one':
+                y = y1
+        # f1, f2, ax, y, idx1, idx2 = batch
         acc = analyze_correct[i][hidd_t_idx]
-        ax = ax.cpu().numpy().squeeze()
+        ctx = ctx.cpu().numpy().squeeze()
         idx1 = idx1[0]
         idx2 = idx2[0]
         loc1 = idx2loc[idx1]
         loc2 = idx2loc[idx2]
-        if ax==0:
-            if loc1[ax]==0: ctx0_g0.append(acc) # (len(all_perms)/2) / 4 = [48]
-            elif loc1[ax]==1: ctx0_g1.append(acc)
-            elif loc1[ax]==2: ctx0_g2.append(acc)
-            elif loc1[ax]==3: ctx0_g3.append(acc)
-        elif ax==1:
-            if loc1[ax]==0: ctx1_g0.append(acc)
-            elif loc1[ax]==1: ctx1_g1.append(acc)
-            elif loc1[ax]==2: ctx1_g2.append(acc)
-            elif loc1[ax]==3: ctx1_g3.append(acc)
+        if ctx==0:
+            if loc1[ctx]==0: ctx0_g0.append(acc) # (len(all_perms)/2) / 4 = [48]
+            elif loc1[ctx]==1: ctx0_g1.append(acc)
+            elif loc1[ctx]==2: ctx0_g2.append(acc)
+            elif loc1[ctx]==3: ctx0_g3.append(acc)
+        elif ctx==1:
+            if loc1[ctx]==0: ctx1_g0.append(acc)
+            elif loc1[ctx]==1: ctx1_g1.append(acc)
+            elif loc1[ctx]==2: ctx1_g2.append(acc)
+            elif loc1[ctx]==3: ctx1_g3.append(acc)
     ctx0_accs = [np.mean(ctx0_g0), np.mean(ctx0_g1), 
                 np.mean(ctx0_g2), np.mean(ctx0_g3) ]
     ctx1_accs = [np.mean(ctx1_g0), np.mean(ctx1_g1), 

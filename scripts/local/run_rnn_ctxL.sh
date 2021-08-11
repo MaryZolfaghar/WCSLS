@@ -12,6 +12,7 @@ python main.py \
 --truncated_mlp 'false' \
 --out_file 'ctxL_results_rnn_init1.P' \
 --seed 0 \
+--use_images \
 --print_every 200 \
 --N_episodic 1000 \
 --bs_episodic 16 \

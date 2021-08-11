@@ -1,7 +1,7 @@
 import numpy as np
 import torch 
 from itertools import permutations
-from utils.util import is_congruent
+from utils.util import get_congruency
 
 def test(meta, model, loader, args):
     model.eval()
@@ -65,7 +65,7 @@ def test(meta, model, loader, args):
                 c = c.cpu().numpy().tolist()
                 correct += c
                 for i, (i1, i2) in enumerate(zip(idx1, idx2)): # idx1 and 2 comes in a batch
-                    cong = is_congruent(args, i1, i2)
+                    cong = get_congruency(args, i1, i2)
                     if cong==1:
                         cong_correct.append(c[i])
                     if cong==-1:
