@@ -224,7 +224,7 @@ def main(args):
                 
                 
                 if args.measure_grad_norm: 
-                    loss.backward(torch.ones_like(loss))
+                    loss.backward(torch.ones_like(loss), retain_graph=True)
                     # Record loss
                     train_losses.append(torch.mean(loss.data))
                     ave_loss.append(torch.mean(loss.data))
@@ -234,15 +234,20 @@ def main(args):
                     train_losses.append(loss.data.item())
                     ave_loss.append(loss.data.item())
 
-                optimizer.step()
+                
                 
                 if args.measure_grad_norm:
                     batch_size = args.bs_cortical
-                    for si in batch:
+                    for i, si in enumerate(batch):
+                        
+
                         if args.cortical_task == 'face_task':
-                            f1, f2, ctx, y, idx1, idx2 = si # face1, face2, context, y, index1, index2
+                            f1, f2, ctx, y, idx1, idx2 = batch[0][i], batch[1][i], batch[2][i], \
+                                                     batch[3][i], batch[4][i], batch[5][i], 
                         elif args.cortical_task == 'wine_task':
-                            f1, f2, ctx, y1, y2, idx1, idx2 = si 
+                            f1, f2, ctx, y1, y2, idx1, idx2 = batch[0][i], batch[1][i], batch[2][i], \
+                                                              batch[3][i], batch[4][i], batch[5][i], \
+                                                              batch[6][i], 
                         # # 1: congruent, -1:incongruent, 0:none
                         # cong = get_congruency(args, idx1, idx2)
                         # avg norm per batch, regardless of congruency 
@@ -261,18 +266,21 @@ def main(args):
                         
                         
                         output = torch.zeros(batch_size,1)                                                                                                          
-                        output[si] = 1.
-                        # x = model.ctx_embed
+                        # output[si] = 1.
+                        output[i] = 1.
+                        x = model.ctx_embed
                         y = loss
-                        grd = torch.autograd.grad(y, model.ctx_embed, grad_outputs=output, retain_graph=True)[0]
+                        grd = torch.autograd.grad(y, model.ctx_embed, grad_outputs=output.squeeze(), retain_graph=True)[0]
+                        # grd: [1, 32, 32]
                         n_grd_ctx  = torch.linalg.norm(grd)
+                        # n_grad_ctx: scalar
                         n_gradient_ctx.append(n_grd_ctx.numpy())
 
-                        grd = torch.autograd.grad(y, model.f1_embed, grad_outputs=output, retain_graph=True)[0]
+                        grd = torch.autograd.grad(y, model.f1_embed, grad_outputs=output.squeeze(), retain_graph=True)[0]
                         n_grd_f1  = torch.linalg.norm(grd)
                         n_gradient_f1.append(n_grd_f1.numpy())
 
-                        grd = torch.autograd.grad(y, model.f2_embed, grad_outputs=output, retain_graph=True)[0]
+                        grd = torch.autograd.grad(y, model.f2_embed, grad_outputs=output.squeeze(), retain_graph=True)[0]
                         n_grd_f2  = torch.linalg.norm(grd)
                         n_gradient_f2.append(n_grd_f2.numpy())
 
@@ -289,6 +297,10 @@ def main(args):
                             n_gradient_f2_incong.append(n_grd_f2.numpy())
 
                     loss = loss.sum()
+                
+                
+                optimizer.step()
+                
                 if i % args.print_every == 0:
                     if args.N_responses == 'two':
                         print("Run: {}, Step: {}, Loss: {}, Loss1: {}, Loss2: {}".format(run, i, np.mean(ave_loss),
