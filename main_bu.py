@@ -53,7 +53,7 @@ parser.add_argument('--bs_cortical', type=int, default=32,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
                     help='Learning rate for cortical system')
-parser.add_argument('--nruns_cortical', type=int, default=2, # 20
+parser.add_argument('--nruns_cortical', type=int, default=1, # 20
                     help='Number of runs for cortical system')
 parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
@@ -118,7 +118,7 @@ def main(args):
     n_gradients_ctx, n_gradients_f1, n_gradients_f2 = [], [], []
     n_gradients_ctx_cong, n_gradients_f1_cong, n_gradients_f2_cong = [], [], []
     n_gradients_ctx_incong, n_gradients_f1_incong, n_gradients_f2_incong = [], [], []
-    congruencies = []
+    gradient_samples = []
     for run in range(args.nruns_cortical):
         n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
         n_gradient_ctx_cong, n_gradient_f1_cong, n_gradient_f2_cong = [], [], []
@@ -159,6 +159,10 @@ def main(args):
         model = cortical_system
         model.train()
         # loss function
+        # Todo: add "measure_grad_norm" to the args 
+        # if args.measure_grad_norm:
+            # loss_fn = nn.CrossEntropyLoss(reduction='none') # [batch]
+        # else:
         loss_fn = nn.CrossEntropyLoss()
         loss_fn.to(args.device)
 
@@ -217,40 +221,85 @@ def main(args):
                         train_losses2.append(loss2.data.item())
                         ave_loss1.append(loss1.data.item())
                         ave_loss2.append(loss2.data.item())
-
-                if args.measure_grad_norm:
-                    model.f1_embed.retain_grad()
-                    model.f2_embed.retain_grad()
-                    model.ctx_embed.retain_grad()
-
+                
+                
+                # if args.measure_grad_norm: 
+                #     loss.backward(torch.ones_like(loss), retain_graph=True)
+                #     # Record loss
+                #     train_losses.append(torch.mean(loss.data))
+                #     ave_loss.append(torch.mean(loss.data))
+                # else:
                 loss.backward()
                 # Record loss
                 train_losses.append(loss.data.item())
                 ave_loss.append(loss.data.item())
                 
                 if args.measure_grad_norm:
-                    
-                    n_grd_ctx = torch.linalg.norm(model.ctx_embed.grad, dim=1)
-                    n_grd_f1 = torch.linalg.norm(model.f1_embed.grad, dim=1)
-                    n_grd_f2 = torch.linalg.norm(model.f2_embed.grad, dim=1)
+                    # batch_size = args.bs_cortical
+                    # for i, si in enumerate(batch):
+                        # if args.cortical_task == 'face_task':
+                        #     f1, f2, ctx, y, idx1, idx2 = batch[0][i], batch[1][i], batch[2][i], \
+                        #                              batch[3][i], batch[4][i], batch[5][i], 
+                        # elif args.cortical_task == 'wine_task':
+                        #     f1, f2, ctx, y1, y2, idx1, idx2 = batch[0][i], batch[1][i], batch[2][i], \
+                        #                                       batch[3][i], batch[4][i], batch[5][i], \
+                        #                                       batch[6][i], 
+                        # # # 1: congruent, -1:incongruent, 0:none
+                        # # cong = get_congruency(args, idx1, idx2)
+                        # # avg norm per batch, regardless of congruency 
+                        # # and norm per samle : 32*1000 batch_size*N_cortical
+                        # # have a seaprate list for cong and incong (1 and -1)
+                        
+                        # # first avg over the checkpoint (which implicity avg over batch as well)
+                        
+                        # # 1 per checkpoint for cong anv one for incong
+                        # # lists: one for all, one for cong, one for incong, 
+                        # # ties would be appended to all 
+                        # # append per sample 
+                        # # after each checkpoint, avg each of those inner lists and append to the 
+                        # # corresponding three outter lists.
+                        # # total 9 outter and inner lists 
+                        
+                        
+                        # output = torch.zeros(batch_size,1)                                                                                                          
+                        # # output[si] = 1.
+                        # output[i] = 1.
+                        # x = model.ctx_embed
+                        # y = loss
+                        # grd = torch.autograd.grad(y, model.ctx_embed, grad_outputs=output.squeeze(), retain_graph=True)[0]
+                        # # grd: [1, 32, 32]
+                        # n_grd_ctx  = torch.linalg.norm(grd)
+                        # # n_grad_ctx: scalar
+                        # n_gradient_ctx.append(n_grd_ctx.numpy())
+
+                        # grd = torch.autograd.grad(y, model.f1_embed, grad_outputs=output.squeeze(), retain_graph=True)[0]
+                        # n_grd_f1  = torch.linalg.norm(grd)
+                        # n_gradient_f1.append(n_grd_f1.numpy())
+
+                        # grd = torch.autograd.grad(y, model.f2_embed, grad_outputs=output.squeeze(), retain_graph=True)[0]
+                        # n_grd_f2  = torch.linalg.norm(grd)
+                        # n_gradient_f2.append(n_grd_f2.numpy())
+
+                        # # 1: congruent, -1:incongruent, 0:none
+                        # cong = get_congruency(args, idx1, idx2)
+                        # gradient_samples.append(cong)
+                        # if cong==1:
+                        #     n_gradient_ctx_cong.append(n_grd_ctx.numpy())
+                        #     n_gradient_f1_cong.append(n_grd_f1.numpy())
+                        #     n_gradient_f2_cong.append(n_grd_f2.numpy())
+                        # if cong==-1:
+                        #     n_gradient_ctx_incong.append(n_grd_ctx.numpy())
+                        #     n_gradient_f1_incong.append(n_grd_f1.numpy())
+                        #     n_gradient_f2_incong.append(n_grd_f2.numpy())
+
+                    # loss = loss.sum()
+                    n_grd_ctx = model.ctx_embed.grad
+                    n_grd_f1 = model.f1_embed.grad
+                    n_grd_f2 = model.f2_embed.grad
 
                     n_gradient_ctx.append(n_grd_ctx.numpy())
                     n_gradient_f1.append(n_grd_f1.numpy())
                     n_gradient_f2.append(n_grd_f2.numpy())
-
-                    for ii, (i1, i2) in enumerate(zip(idx1, idx2)):
-                        # 1: congruent, -1:incongruent, 0:none
-                        cong = get_congruency(args, i1, i2)
-                        congruencies.append(cong)
-                        if cong==1:
-                            n_gradient_ctx_cong.append(n_grd_ctx[ii].numpy())
-                            n_gradient_f1_cong.append(n_grd_f1[ii].numpy())
-                            n_gradient_f2_cong.append(n_grd_f2[ii].numpy())
-                        if cong==-1:
-                            n_gradient_ctx_incong.append(n_grd_ctx[ii].numpy())
-                            n_gradient_f1_incong.append(n_grd_f1[ii].numpy())
-                            n_gradient_f2_incong.append(n_grd_f2[ii].numpy())
-
 
 
                 optimizer.step()
@@ -281,28 +330,22 @@ def main(args):
                     cortical_result['incong_test_acc'] = incong_test_acc
                     cortical_result['analyze_acc'] = cortical_analyze_acc
                     cortical_result['analyze_correct'] = cortical_analyze_correct
-                    
-                    args.measure_grad_norm:
-                        n_gradients_ctx_cong.append(np.mean(n_gradient_ctx_cong))
-                        n_gradients_f1_cong.append(np.mean(n_gradient_f1_cong))
-                        n_gradients_f2_cong.append(np.mean(n_gradient_f2_cong))
-
-                        n_gradients_ctx_incong.append(np.mean(n_gradient_ctx_incong))
-                        n_gradients_f1_incong.append(np.mean(n_gradient_f1_incong))
-                        n_gradients_f2_incong.append(np.mean(n_gradient_f2_incong))
-
-                        n_gradients_ctx.append(np.mean(n_gradient_ctx))
-                        n_gradients_f1.append(np.mean(n_gradient_f1))
-                        n_gradients_f2.append(np.mean(n_gradient_f2))
-                        
-                        cortical_result['grad_ctx'] = n_gradients_ctx
-                        # todo: add a function in run_analyze to gather data for runs, checkpoints
-                        
-                        n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
-                        n_gradient_ctx_cong, n_gradient_f1_cong, n_gradient_f2_cong = [], [], []
-                        n_gradient_ctx_incong, n_gradient_f1_incong, n_gradient_f2_incong = [], [], []
-
                     cortical_run.append(cortical_result)
+
+                    # n_gradients_ctx_cong.append(np.mean(n_gradient_ctx_cong))
+                    # n_gradients_f1_cong.append(np.mean(n_gradient_f1_cong))
+                    # n_gradients_f2_cong.append(np.mean(n_gradient_f2_cong))
+
+                    # n_gradients_ctx_incong.append(np.mean(n_gradient_ctx_incong))
+                    # n_gradients_f1_incong.append(np.mean(n_gradient_f1_incong))
+                    # n_gradients_f2_incong.append(np.mean(n_gradient_f2_incong))
+                    n_gradients_ctx.append(n_gradient_ctx)
+                    n_gradients_f1.append(n_gradient_f1)
+                    n_gradients_f2.append(n_gradient_f2)
+
+                    n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
+                    # n_gradient_ctx_cong, n_gradient_f1_cong, n_gradient_f2_cong = [], [], []
+                    # n_gradient_ctx_incong, n_gradient_f1_incong, n_gradient_f2_incong = [], [], []
 
                 if i >= N:
                     done = True 

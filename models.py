@@ -234,6 +234,8 @@ class RecurrentCorticalSystem(nn.Module):
         self.N_responses = args.N_responses
         self.is_lesion = args.is_lesion
         self.lesion_p = args.lesion_p
+        self.measure_grad_norm = args.measure_grad_norm
+        # todo: do this for all the models
 
         # Hyperparameters
         self.n_states = 16
@@ -266,20 +268,28 @@ class RecurrentCorticalSystem(nn.Module):
     def forward(self, f1, f2, ctx):
 
         # Embed inputs
-        self.f1_embed = self.face_embedding(f1).unsqueeze(0) # [1, batch, state_dim]
-        self.f2_embed = self.face_embedding(f2).unsqueeze(0) # [1, batch, state_dim]
-        self.ctx_embed = self.ctx_embedding(ctx).unsqueeze(0) # [1, batch, state_dim]
-        if self.is_lesion:
-            # print('lesioned the ctx with prob %s' %(self.lesion_p))
-            self.ctx_embed = torch.tensor(self.lesion_p) * self.ctx_embed
+        f1_embed = self.face_embedding(f1) # [batch, state_dim]
+        f2_embed = self.face_embedding(f2) # [batch, state_dim]
+        ctx_embed = self.ctx_embedding(ctx)# [batch, state_dim]
 
-        # todo: self.f1_embed = f1_embed and for the rest
+        if self.measure_grad_norm:
+            self.f1_embed = f1_embed
+            self.f2_embed = f2_embed
+            self.ctx_embed = ctx_embed
+            # self.f1_embed.retain_grad()
+            # self.f2_embed.retain_grad()
+            # self.ctx_embed.retain_grad()
+    
+        if self.is_lesion:
+            self.ctx_embed = torch.tensor(self.lesion_p) * self.ctx_embed
 
         # LSTM
         if self.order_ctx == 'last':
-            x = torch.cat([self.f1_embed, self.f2_embed, self.ctx_embed], dim=0)
+            x = torch.cat([self.f1_embed.unsqueeze(0), self.f2_embed.unsqueeze(0),
+                           self.ctx_embed.unsqueeze(0)], dim=0)
         elif self.order_ctx == 'first':
-            x = torch.cat([self.ctx_embed, self.f1_embed, self.f2_embed], dim=0)
+            x = torch.cat([self.ctx_embed.unsqueeze(0), self.f1_embed.unsqueeze(0), 
+                           self.f2_embed.unsqueeze(0)], dim=0)
             
         
         # MLP
