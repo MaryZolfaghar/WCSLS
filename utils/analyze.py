@@ -338,6 +338,19 @@ def analyze_accs(args, test_data, cortical_result, dist_results):
     # cortical_analyze_acc = cortical_result['analyze_acc']
     # cortical_analyze_correct = cortical_result['analyze_correct']
 
+def analyze_credit_assignment(args, test_data, cortical_result, dist_results):
+    resutls = {'grad_ctx': cortical_result['grad_ctx'],
+              'grad_f1': cortical_result['grad_f1'],
+              'grad_f2': cortical_result['grad_f2'],
+              'grad_ctx_cong': cortical_result['grad_ctx_cong'],
+              'grad_f1_cong': cortical_result['grad_f1_cong'],
+              'grad_f2_cong': cortical_result['grad_f2_cong'],
+              'grad_ctx_incong': cortical_result['grad_ctx_incong'],
+              'grad_f1_incong': cortical_result['grad_f1_incong'],
+              'grad_f2_incong': cortical_result['grad_f2_incong']
+              }
+    return resutls
+
 def proportions(args, test_data, cortical_result, dist_results):
     hiddens_ctxs = cortical_result['hiddens_ctxs'] # list of len [n_ctx]
     hiddens_ctxs = [np.concatenate(h, axis=0) for h in hiddens_ctxs] # list of len [n_ctx] each has either [192,128] or [224,128]

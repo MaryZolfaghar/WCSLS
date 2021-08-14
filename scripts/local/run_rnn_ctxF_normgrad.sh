@@ -3,14 +3,15 @@
 # conda activate /Users/Maryam/anaconda3/envs/csls
 # /Users/Maryam/anaconda3/envs/csls
 
-echo "Process rnn starts"
+echo "Process rnn starts - norm gradient exp."
 
 python main.py \
 --cortical_model 'rnn' \
 --nruns_cortical 20 \
---order_ctx 'last' \
+--order_ctx 'first' \
 --truncated_mlp 'false' \
---out_file 'ctxL_results_rnn.P' \
+--measure_grad_norm \
+--out_file 'ctxF_results_rnn_normgrad.P' \
 --seed 0 \
 --use_images \
 --print_every 200 \

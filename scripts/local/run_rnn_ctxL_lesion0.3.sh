@@ -3,15 +3,17 @@
 # conda activate /Users/Maryam/anaconda3/envs/csls
 # /Users/Maryam/anaconda3/envs/csls
 
-echo "Process rnn starts"
+echo "Process rnn starts - ctx last- lesion p 0.3"
 
 python main.py \
 --cortical_model 'rnn' \
 --nruns_cortical 20 \
 --order_ctx 'last' \
---truncated_mlp 'false' \
---out_file 'ctxL_results_rnn.P' \
+--is_lesion \
+--lesion_p 0.3 \
+--out_file 'ctxL_results_rnn_lesionp0.3.P' \
 --seed 0 \
+--truncated_mlp 'false' \
 --use_images \
 --print_every 200 \
 --N_episodic 1000 \

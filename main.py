@@ -282,21 +282,30 @@ def main(args):
                     cortical_result['analyze_acc'] = cortical_analyze_acc
                     cortical_result['analyze_correct'] = cortical_analyze_correct
                     
-                    args.measure_grad_norm:
-                        n_gradients_ctx_cong.append(np.mean(n_gradient_ctx_cong))
-                        n_gradients_f1_cong.append(np.mean(n_gradient_f1_cong))
-                        n_gradients_f2_cong.append(np.mean(n_gradient_f2_cong))
+                    if args.measure_grad_norm:
+                        # n_gradients_ctx_cong.append(np.mean(n_gradient_ctx_cong))
+                        # n_gradients_f1_cong.append(np.mean(n_gradient_f1_cong))
+                        # n_gradients_f2_cong.append(np.mean(n_gradient_f2_cong))
 
-                        n_gradients_ctx_incong.append(np.mean(n_gradient_ctx_incong))
-                        n_gradients_f1_incong.append(np.mean(n_gradient_f1_incong))
-                        n_gradients_f2_incong.append(np.mean(n_gradient_f2_incong))
+                        # n_gradients_ctx_incong.append(np.mean(n_gradient_ctx_incong))
+                        # n_gradients_f1_incong.append(np.mean(n_gradient_f1_incong))
+                        # n_gradients_f2_incong.append(np.mean(n_gradient_f2_incong))
 
-                        n_gradients_ctx.append(np.mean(n_gradient_ctx))
-                        n_gradients_f1.append(np.mean(n_gradient_f1))
-                        n_gradients_f2.append(np.mean(n_gradient_f2))
+                        # n_gradients_ctx.append(np.mean(n_gradient_ctx))
+                        # n_gradients_f1.append(np.mean(n_gradient_f1))
+                        # n_gradients_f2.append(np.mean(n_gradient_f2))
                         
-                        cortical_result['grad_ctx'] = n_gradients_ctx
-                        # todo: add a function in run_analyze to gather data for runs, checkpoints
+                        cortical_result['grad_ctx'] = np.mean(n_gradient_ctx)
+                        cortical_result['grad_f1'] = np.mean(n_gradient_f1)
+                        cortical_result['grad_f2'] = np.mean(n_gradient_f2)
+
+                        cortical_result['grad_ctx_cong'] = np.mean(n_gradient_ctx_cong)
+                        cortical_result['grad_f1_cong'] = np.mean(n_gradient_f1_cong)
+                        cortical_result['grad_f2_cong'] = np.mean(n_gradient_f2_cong)
+
+                        cortical_result['grad_ctx_incong'] = np.mean(n_gradient_ctx_incong)
+                        cortical_result['grad_f1_incong'] = np.mean(n_gradient_f1_incong)
+                        cortical_result['grad_f2_incong'] = np.mean(n_gradient_f2_incong)
                         
                         n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
                         n_gradient_ctx_cong, n_gradient_f1_cong, n_gradient_f2_cong = [], [], []
@@ -348,9 +357,10 @@ if __name__ == '__main__':
                       analyze_dim_red, analyze_ttest, analyze_corr, \
                       analyze_regression, analyze_regression_1D, \
                       analyze_regression_exc, analyze_test_seq, proportions]
-    
-    # analysis_names = 'analyze_regression_exc'
-    # analysis_funcs = analyze_regression_exc
+                      
+    if args.measure_grad_norm:
+        analysis_names.append('analyze_credit_assignment')
+        analysis_funcs.append(analyze_credit_assignment)
     
     args.analysis_names = analysis_names
     args.analysis_funcs = analysis_funcs

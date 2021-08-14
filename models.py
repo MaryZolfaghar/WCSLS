@@ -164,6 +164,7 @@ class CorticalSystem(nn.Module):
         self.N_responses = args.N_responses
         self.is_lesion = args.is_lesion
         self.lesion_p = args.lesion_p
+        self.measure_grad_norm = args.measure_grad_norm
         
         # Hyperparameters
         self.n_states = 16
@@ -176,7 +177,6 @@ class CorticalSystem(nn.Module):
         self.output_dim = 2
         self.analyze = False
         
-
         # Input embedding (images or one-hot)
         if self.use_images:
             self.face_embedding = CNN(self.state_dim)
@@ -196,14 +196,19 @@ class CorticalSystem(nn.Module):
     def forward(self, f1, f2, ctx):
 
         # Embed inputs
-        self.f1_embed = self.face_embedding(f1) # [batch, state_dim]
-        self.f2_embed = self.face_embedding(f2) # [batch, state_dim]
-        self.ctx_embed = self.ctx_embedding(ctx) # [batch, state_dim]
+        f1_embed  = self.face_embedding(f1) # [batch, state_dim]
+        f2_embed  = self.face_embedding(f2) # [batch, state_dim]
+        ctx_embed = self.ctx_embedding(ctx) # [batch, state_dim]
         
         if self.is_lesion:
-            self.ctx_embed = torch.tensor(self.lesion_p) * self.ctx_embed
+            ctx_embed = torch.tensor(self.lesion_p) * ctx_embed
         
-        x = torch.cat([self.f1_embed, self.f2_embed, self.ctx_embed], dim=1) 
+        if self.measure_grad_norm:
+            self.f1_embed = f1_embed
+            self.f2_embed = f2_embed
+            self.ctx_embed = ctx_embed
+
+        x = torch.cat([f1_embed, f2_embed, ctx_embed], dim=1) 
         # if self.N_responses == 'one':
         #     ctx_embed = self.ctx_embedding(ctx) # [batch, state_dim]
         #     # MLP
@@ -235,7 +240,6 @@ class RecurrentCorticalSystem(nn.Module):
         self.is_lesion = args.is_lesion
         self.lesion_p = args.lesion_p
         self.measure_grad_norm = args.measure_grad_norm
-        # todo: do this for all the models
 
         # Hyperparameters
         self.n_states = 16
@@ -272,24 +276,21 @@ class RecurrentCorticalSystem(nn.Module):
         f2_embed = self.face_embedding(f2) # [batch, state_dim]
         ctx_embed = self.ctx_embedding(ctx)# [batch, state_dim]
 
+        if self.is_lesion:
+            ctx_embed = torch.tensor(self.lesion_p) * ctx_embed
+
         if self.measure_grad_norm:
             self.f1_embed = f1_embed
             self.f2_embed = f2_embed
             self.ctx_embed = ctx_embed
-            # self.f1_embed.retain_grad()
-            # self.f2_embed.retain_grad()
-            # self.ctx_embed.retain_grad()
-    
-        if self.is_lesion:
-            self.ctx_embed = torch.tensor(self.lesion_p) * self.ctx_embed
 
         # LSTM
         if self.order_ctx == 'last':
-            x = torch.cat([self.f1_embed.unsqueeze(0), self.f2_embed.unsqueeze(0),
-                           self.ctx_embed.unsqueeze(0)], dim=0)
+            x = torch.cat([f1_embed.unsqueeze(0), f2_embed.unsqueeze(0),
+                           ctx_embed.unsqueeze(0)], dim=0)
         elif self.order_ctx == 'first':
-            x = torch.cat([self.ctx_embed.unsqueeze(0), self.f1_embed.unsqueeze(0), 
-                           self.f2_embed.unsqueeze(0)], dim=0)
+            x = torch.cat([ctx_embed.unsqueeze(0), f1_embed.unsqueeze(0), 
+                           f2_embed.unsqueeze(0)], dim=0)
             
         
         # MLP
@@ -327,6 +328,7 @@ class RNNCell(nn.Module):
         self.N_responses = args.N_responses
         self.is_lesion = args.is_lesion
         self.lesion_p = args.lesion_p
+        self.measure_grad_norm = args.measure_grad_norm
 
         # Hyperparameters
         self.n_states = 16
@@ -359,24 +361,29 @@ class RNNCell(nn.Module):
 
     def forward(self, f1, f2, ctx):
         # Embed inputs
-        self.f1_embed = self.face_embedding(f1).unsqueeze(0) # [1, batch, state_dim]
-        self.f2_embed = self.face_embedding(f2).unsqueeze(0) # [1, batch, state_dim]
-        self.ctx_embed = self.ctx_embedding(ctx).unsqueeze(0) # [1, batch, state_dim]
+        f1_embed  = self.face_embedding(f1).unsqueeze(0) # [1, batch, state_dim]
+        f2_embed  = self.face_embedding(f2).unsqueeze(0) # [1, batch, state_dim]
+        ctx_embed = self.ctx_embedding(ctx).unsqueeze(0) # [1, batch, state_dim]
         
         if self.is_lesion:
-            self.ctx_embed = torch.tensor(self.lesion_p) * self.ctx_embed
+            ctx_embed = torch.tensor(self.lesion_p) * ctx_embed
+
+        if self.measure_grad_norm:
+            self.f1_embed = f1_embed
+            self.f2_embed = f2_embed
+            self.ctx_embed = ctx_embed
 
         # LSTMCell
         if self.order_ctx == 'last':
-            x = torch.cat([self.f1_embed, self.f2_embed, self.ctx_embed], dim=0)
+            x = torch.cat([f1_embed, f2_embed, ctx_embed], dim=0)
         elif self.order_ctx == 'first':
-            x = torch.cat([self.ctx_embed, self.f1_embed, self.f2_embed], dim=0)
+            x = torch.cat([ctx_embed, f1_embed, f2_embed], dim=0)
 
         lstm_out = []
         n_times = len(x)
         # h0 and c0
-        h_n = torch.zeros([self.f1_embed.size(1), self.hidden_dim]) # [1, batch, hidden_dim]
-        c_n = torch.zeros([self.f1_embed.size(1), self.hidden_dim]) # [1, batch, hidden_dim]
+        h_n = torch.zeros([f1_embed.size(1), self.hidden_dim]) # [1, batch, hidden_dim]
+        c_n = torch.zeros([f1_embed.size(1), self.hidden_dim]) # [1, batch, hidden_dim]
         for t in range(n_times):
             xt = x[t]
             h_n, c_n = self.lstmcell(xt, (h_n.detach(), c_n.detach())) # h_n/c_n: [1,batch, hidden_dim]
@@ -413,6 +420,7 @@ class StepwiseCorticalSystem(nn.Module):
         self.truncated_mlp = args.truncated_mlp
         self.is_lesion = args.is_lesion
         self.lesion_p = args.lesion_p
+        self.measure_grad_norm = args.measure_grad_norm
 
         # Hyperparameters
         self.n_states = 16
@@ -440,13 +448,17 @@ class StepwiseCorticalSystem(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, f1, f2, ctx):
-        self.f1_embed = self.face_embedding(f1) # [batch, state_dim]
-        self.f2_embed = self.face_embedding(f2) # [batch, state_dim]
-        self.ctx_embed = self.ctx_embedding(ctx)
+        f1_embed  = self.face_embedding(f1) # [batch, state_dim]
+        f2_embed  = self.face_embedding(f2) # [batch, state_dim]
+        ctx_embed = self.ctx_embedding(ctx)
         
-
         if self.is_lesion:
-            self.ctx_embed = torch.tensor(self.lesion_p) * self.ctx_embed
+            ctx_embed = torch.tensor(self.lesion_p) * ctx_embed
+
+        if self.measure_grad_norm:
+            self.f1_embed = f1_embed
+            self.f2_embed = f2_embed
+            self.ctx_embed = ctx_embed
 
         # if self.order_ctx == 'last':
         #     x1 = torch.cat([ctx_embed, f1_embed], dim=1)
@@ -455,14 +467,14 @@ class StepwiseCorticalSystem(nn.Module):
         #     x1 = torch.cat([ctx_embed, f1_embed], dim=1)
         #     # x = torch.cat([ctx_embed, f1_embed, f2_embed], dim=0)
 
-        x1 = torch.cat([self.ctx_embed, self.f1_embed], dim=1)
+        x1 = torch.cat([ctx_embed, f1_embed], dim=1)
         hidd1 = self.hidden1(x1) # [batch, hidden1_dim]
         hidd1 = self.relu(hidd1) # [batch, hidden1_dim]
         
         if self.truncated_mlp=='true':
-            x2 = torch.cat([hidd1.detach(), self.f2_embed], dim=1) # [batch, state_dim+hidden1_dim]
+            x2 = torch.cat([hidd1.detach(), f2_embed], dim=1) # [batch, state_dim+hidden1_dim]
         else:
-            x2 = torch.cat([hidd1, self.f2_embed], dim=1) # [batch, state_dim+hidden1_dim]
+            x2 = torch.cat([hidd1, f2_embed], dim=1) # [batch, state_dim+hidden1_dim]
 
         hidd2 = self.hidden2(x2) # [batch, hidden2_dim]
         hidd2 = self.relu(hidd2) # [batch, hidden2_dim]
@@ -478,6 +490,7 @@ class CognitiveController(nn.Module):
         self.n_ctx = args.N_contexts
         self.is_lesion = args.is_lesion
         self.lesion_p = args.lesion_p
+        self.measure_grad_norm = args.measure_grad_norm
 
         # Hyperparameters
         self.n_states = 16
@@ -514,22 +527,27 @@ class CognitiveController(nn.Module):
         batch = f1.shape[0]
 
         # Embed inputs
-        self.f1_embed = self.face_embedding(f1) # [batch, state_dim]
-        self.f2_embed = self.face_embedding(f2) # [batch, state_dim]
-        self.ctx_embed = self.ctx_embedding(ctx) # [batch, state_dim]
+        f1_embed  = self.face_embedding(f1) # [batch, state_dim]
+        f2_embed  = self.face_embedding(f2) # [batch, state_dim]
+        ctx_embed = self.ctx_embedding(ctx) # [batch, state_dim]
         
         
         if self.is_lesion:
-            self.ctx_embed = torch.tensor(self.lesion_p) * self.ctx_embed
+            ctx_embed = torch.tensor(self.lesion_p) * ctx_embed
+
+        if self.measure_grad_norm:
+            self.f1_embed = f1_embed
+            self.f2_embed = f2_embed
+            self.ctx_embed = ctx_embed
 
         # Hidden
-        x = torch.cat([self.f1_embed, self.f2_embed], dim=1) # [batch, 2*state_dim]
+        x = torch.cat([f1_embed, f2_embed], dim=1) # [batch, 2*state_dim]
         hidden = self.relu(self.linear(x)) # [batch, hidden_dim]
         hidden = hidden.view(batch, self.h_dim, self.n_ctx) 
         # hidden: [batch, hidden_dim // n_ctx, n_ctx]
 
         # Control
-        control_signal = self.softmax(self.control(self.ctx_embed)) # [batch, n_ctx]
+        control_signal = self.softmax(self.control(ctx_embed)) # [batch, n_ctx]
         control_signal = control_signal.unsqueeze(1) # [batch, 1, n_ctx]
         hidden = hidden * control_signal # [batch, hidden_dim // n_ctx, n_ctx]
         

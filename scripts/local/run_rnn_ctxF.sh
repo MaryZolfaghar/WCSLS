@@ -10,7 +10,7 @@ python main.py \
 --nruns_cortical 20 \
 --order_ctx 'first' \
 --truncated_mlp 'false' \
---out_file 'ctxF_results_rnn_init1.P' \
+--out_file 'ctxF_results_rnn.P' \
 --seed 0 \
 --use_images \
 --print_every 200 \
