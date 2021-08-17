@@ -115,9 +115,9 @@ def main(args):
     meta = False # cortical learning is vanilla
     cortical_runs = []
     # train_acc_runs, test_acc_runs = [], []
-    n_gradients_ctx, n_gradients_f1, n_gradients_f2 = [], [], []
-    n_gradients_ctx_cong, n_gradients_f1_cong, n_gradients_f2_cong = [], [], []
-    n_gradients_ctx_incong, n_gradients_f1_incong, n_gradients_f2_incong = [], [], []
+    # n_gradients_ctx, n_gradients_f1, n_gradients_f2 = [], [], []
+    # n_gradients_ctx_cong, n_gradients_f1_cong, n_gradients_f2_cong = [], [], []
+    # n_gradients_ctx_incong, n_gradients_f1_incong, n_gradients_f2_incong = [], [], []
     congruencies = []
     for run in range(args.nruns_cortical):
         n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
@@ -251,8 +251,6 @@ def main(args):
                             n_gradient_f1_incong.append(n_grd_f1[ii].numpy())
                             n_gradient_f2_incong.append(n_grd_f2[ii].numpy())
 
-
-
                 optimizer.step()
                 
                 if i % args.print_every == 0:
@@ -283,18 +281,6 @@ def main(args):
                     cortical_result['analyze_correct'] = cortical_analyze_correct
                     
                     if args.measure_grad_norm:
-                        # n_gradients_ctx_cong.append(np.mean(n_gradient_ctx_cong))
-                        # n_gradients_f1_cong.append(np.mean(n_gradient_f1_cong))
-                        # n_gradients_f2_cong.append(np.mean(n_gradient_f2_cong))
-
-                        # n_gradients_ctx_incong.append(np.mean(n_gradient_ctx_incong))
-                        # n_gradients_f1_incong.append(np.mean(n_gradient_f1_incong))
-                        # n_gradients_f2_incong.append(np.mean(n_gradient_f2_incong))
-
-                        # n_gradients_ctx.append(np.mean(n_gradient_ctx))
-                        # n_gradients_f1.append(np.mean(n_gradient_f1))
-                        # n_gradients_f2.append(np.mean(n_gradient_f2))
-                        
                         cortical_result['grad_ctx'] = np.mean(n_gradient_ctx)
                         cortical_result['grad_f1'] = np.mean(n_gradient_f1)
                         cortical_result['grad_f2'] = np.mean(n_gradient_f2)
