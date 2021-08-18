@@ -490,7 +490,6 @@ class CognitiveController(nn.Module):
         self.n_ctx = args.N_contexts
         self.is_lesion = args.is_lesion
         self.lesion_p = args.lesion_p
-        self.measure_grad_norm = args.measure_grad_norm
 
         # Hyperparameters
         self.n_states = 16
