@@ -1015,3 +1015,71 @@ def analyze_test_seq(args, test_data, cortical_result, dist_results):
     # print('Accuracy at t=%s (face%s) contex 0:' %(hidd_t_idx,hidd_t_idx), ctx0_accs)
     # print('Accuracy at t=%s (face%s) contex 1:' %(hidd_t_idx,hidd_t_idx), ctx1_accs)
     return ctx0_accs, ctx1_accs
+
+def get_vis_parameters(args, test_data, cortical_result, dist_results):
+    """
+    Function for getting parameters used to visualize warping of representations
+    over the course of training. 
+    The parameterization works as follows:
+        1. Two groups ("G" and "H") are defined based on locations with the same
+           rank along the "congruent" (bottom-left to top-right) and 
+           "incongruent" (bottom-right to top-left) diagonals
+        2. Distances between adjacent groups are estimated by measuring the 
+           Euclidean distance between the average of all vectors in each group.
+             -alpha: distances between adjacent G ("congruent") groups
+             -beta: distances between adjacent H ("incongruent") groups
+        3. These distances are used to reconstruct the grid in 2 dimensions 
+           (this is done in a jupyter notebook, not in this function)
+    """
+    # Helpful variables
+    n_states = test_data.n_states # total number of faces in grid
+    grid_size = args.grid_size # length of one side of the grid
+    loc2idx = test_data.loc2idx # dict mapping (x,y) tuples to indices
+    idx2loc = {idx:loc for loc, idx in loc2idx.items()} # reverse mapping
+    locs = [idx2loc[idx] for idx in range(n_states)] # (x,y) tuples in idx order
+
+    # Construct same-rank groups for "congruent" and "incongruent" diagonals
+    c_rank = np.array([loc[0]+loc[1] for loc in locs]) # ranks ("congruent")
+    i_rank = np.array([3+loc[0]-loc[1] for loc in locs]) # ranks ("incongruent")
+    n_ranks = len(set(c_rank)) # number of same-rank groups
+    msg = "G and H groups have different sizes"
+    assert len(set(c_rank)) == len(set(i_rank)), msg
+    G_idxs = [] # same-rank groups for "congruent" diagonal
+    H_idxs = [] # same-rank groups for "incongruent" diagonal
+    for i in range(n_ranks):
+        G_set = [j for j in range(n_states) if c_rank[j] == i] # indices in G[i]
+        H_set = [j for j in range(n_states) if i_rank[j] == i] # indices in H[i]
+        G_idxs.append(G_set)
+        H_idxs.append(H_set)
+    
+    # Estimate alpha and beta parameters from averaged hidden vectors
+    M = cortical_result['avg_hidden'] # [n_states, hidden_dim]
+    alpha = []
+    beta = []
+    n_params = n_ranks - 1 # 1 parameter for each adjacent pair of groups 
+    for i in range(n_params):
+        # Estimate alpha_{i, i+1}
+        x_bar_i = np.mean(M[G_idxs[i],:], axis=0) # ave vec in G_i
+        x_bar_ip1 = np.mean(M[G_idxs[i+1],:], axis=0) # ave vec in G_{i+1}
+        x_dist = np.linalg.norm(x_bar_i - x_bar_ip1) # distance between aves
+        alpha.append(x_dist)
+        
+        # Estimate beta_{i, i+1}
+        y_bar_i = np.mean(M[H_idxs[i],:], axis=0) # ave vec in H_i
+        y_bar_ip1 = np.mean(M[H_idxs[i+1],:], axis=0) # ave vec in H_{i+1}
+        y_dist = np.linalg.norm(y_bar_i - y_bar_ip1) # distance between aves
+        beta.append(y_dist)
+    
+    results = {'alpha': alpha, 
+               'beta': beta,
+               'n_states': n_states,
+               'locs': locs,
+               'idx2loc': idx2loc,
+               'G_idxs': G_idxs,
+               'H_idxs': H_idxs}
+    return results
+
+
+
+
+    

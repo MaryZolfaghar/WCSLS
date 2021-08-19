@@ -73,6 +73,8 @@ parser.add_argument('--is_lesion', action='store_true',
                     help='Ablate context')
 parser.add_argument('--lesion_p', type=float, default=0.1,
                     help='Lesion probability')
+parser.add_argument('--grid_size', type=int, default=4,
+                    help='Number of states per side of grid')
 
 
 def main(args):
@@ -334,15 +336,17 @@ def main(args):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    analysis_names = ['analyze_accs', 'hist_data', 'calc_ratio', \
-                      'analyze_dim_red', 'analyze_ttest', 'analyze_corr', \
-                      'analyze_regression', 'analyze_regression_1D', \
-                      'analyze_regression_exc', 'analyze_test_seq', 'proportions']
+    analysis_names = ['analyze_accs', 'hist_data', 'calc_ratio',
+                      'analyze_dim_red', 'analyze_ttest', 'analyze_corr',
+                      'analyze_regression', 'analyze_regression_1D',
+                      'analyze_regression_exc', 'analyze_test_seq', 'proportions',
+                      'get_vis_parameters']
 
-    analysis_funcs = [analyze_accs, hist_data, calc_ratio, \
-                      analyze_dim_red, analyze_ttest, analyze_corr, \
-                      analyze_regression, analyze_regression_1D, \
-                      analyze_regression_exc, analyze_test_seq, proportions]
+    analysis_funcs = [analyze_accs, hist_data, calc_ratio,
+                      analyze_dim_red, analyze_ttest, analyze_corr,
+                      analyze_regression, analyze_regression_1D,
+                      analyze_regression_exc, analyze_test_seq, proportions,
+                      get_vis_parameters]
                       
     if args.measure_grad_norm:
         analysis_names.append('analyze_credit_assignment')
