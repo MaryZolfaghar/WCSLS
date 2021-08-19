@@ -48,12 +48,12 @@ class MemoryLayer(nn.Module):
         return out, attn
         
 class EpisodicSystem(nn.Module):
-    def __init__(self):
+    def __init__(self, args):
         super(EpisodicSystem, self).__init__()
     
         # Hyperparameters
-        self.n_states = 16    # number of faces in 4x4 grid
-        self.ctx_dim = 2     # dimension of context/axis (2d one-hot vectors)
+        self.n_states = args.grid_size**2 # number of faces in 4x4 grid
+        self.ctx_dim = 2      # dimension of context/axis (2d one-hot vectors)
         self.y_dim = 1        # dimension of y (binary)
         self.model_dim = 32   # dimension of Q, K, V
         self.mlp_dim = 64     # dimension of mlp hidden layer
@@ -167,7 +167,7 @@ class CorticalSystem(nn.Module):
         self.measure_grad_norm = args.measure_grad_norm
         
         # Hyperparameters
-        self.n_states = 16
+        self.n_states = args.grid_size**2
         self.state_dim = 32
         if self.N_responses=='one':
             self.mlp_in_dim = 3*self.state_dim # (f1 + f2 + context/axis)
@@ -242,7 +242,7 @@ class RecurrentCorticalSystem(nn.Module):
         self.measure_grad_norm = args.measure_grad_norm
 
         # Hyperparameters
-        self.n_states = 16
+        self.n_states = args.grid_size**2
         self.state_dim = 32
         self.hidden_dim = 128
         self.output_dim = 2
@@ -331,7 +331,7 @@ class RNNCell(nn.Module):
         self.measure_grad_norm = args.measure_grad_norm
 
         # Hyperparameters
-        self.n_states = 16
+        self.n_states = args.grid_size**2
         self.state_dim = 32
         self.hidden_dim = 128
         self.output_dim = 2
@@ -423,7 +423,7 @@ class StepwiseCorticalSystem(nn.Module):
         self.measure_grad_norm = args.measure_grad_norm
 
         # Hyperparameters
-        self.n_states = 16
+        self.n_states = args.grid_size**2
         self.state_dim = 32
         self.hidden1_dim = 128
         self.hidden2_dim = 128
@@ -492,7 +492,7 @@ class CognitiveController(nn.Module):
         self.lesion_p = args.lesion_p
 
         # Hyperparameters
-        self.n_states = 16
+        self.n_states = args.grid_size**2
         self.state_dim = 32
         self.mlp_in_dim = 2*self.state_dim # f1+f2 (context treated separately)
         self.hidden_dim = 128

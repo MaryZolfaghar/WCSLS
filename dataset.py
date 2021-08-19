@@ -415,23 +415,36 @@ class GridMetaDataset(Dataset):
         return train_episode, test_episode
 
 class WineGrid:
-    def __init__(self, N_responses, N_contexts, balanced = False):
-        self.size = 4
+    def __init__(self, N_responses, N_contexts, 
+                 grid_size = 4, balanced = False,
+                 analyze_inner_4x4=False):
+        self.size = grid_size
         self.N_responses = N_responses
         self.N_contexts = N_contexts
+        self.grid_size = grid_size
         if balanced:
             msg = 'balancing only implemented for one response, two contexts'
             assert N_responses == 'one' and N_contexts == 2, msg
         self.balanced = balanced
+        self.analyze_inner_4x4 = analyze_inner_4x4
 
         locs = [(i,j) for i in range(self.size) for j in range(self.size)]
+        idxs = [idx for idx in range(len(locs))]
+        idx2loc = {idx:loc for idx, loc in zip(idxs, locs)}
+        loc2idx = {loc:idx for idx, loc in idx2loc.items()}
+        if analyze_inner_4x4:
+            assert grid_size == 6, "analyze_inner_4x4 only available for size=6"
+            inner_4x4_locs = []
+            for loc in locs:
+                if 0 not in loc and 5 not in loc:
+                    inner_4x4_locs.append(loc)
+            self.inner_4x4_locs = inner_4x4_locs 
+            self.inner_4x4_idxs = [loc2idx[loc] for loc in inner_4x4_locs]
+
         # Generate all the permutations of the pairs
         all_perms = []
         train = []
         test = []
-        idxs = [idx for idx in range(len(locs))]
-        # loc2idx = {loc:idx for loc, idx in zip(locs, idxs)}
-        idx2loc = {idx:loc for idx, loc in zip(idxs, locs)}
         for idx1, idx2 in permutations(idxs, 2):
             loc1, loc2 = idx2loc[idx1], idx2loc[idx2]
             f1 = loc1
@@ -531,7 +544,11 @@ class WineGrid:
         d = r1 - r2
         if d!=0:
             y1 = int(d > 0)
-            all_perms.append((f1, f2, ctx, y1, y2))
+            if self.analyze_inner_4x4 and self.grid_size == 6:
+                if f1 in self.inner_4x4_locs and f2 in self.inner_4x4_locs:
+                    all_perms.append((f1, f2, ctx, y1, y2))
+            else:
+                all_perms.append((f1, f2, ctx, y1, y2))
             if abs(d)>1:
                 test.append((f1, f2, ctx, y1, y2))
             elif abs(d)==1:
@@ -567,15 +584,19 @@ class WineGridDataset(Dataset):
         y2   : correct answer for response 2, always either 0 or 1
     """
     def __init__(self, testing, analyzing, N_contexts, N_responses,
-                 use_images, image_dir = None, balanced = False):
+                 use_images, grid_size = 4, image_dir = None, balanced = False,
+                 analyze_inner_4x4 = False):
         self.testing = testing       # use test set
         self.analyzing = analyzing   # use all the permutations - random split 
         self.use_images = use_images # use images rather than one-hot vectors
+        self.grid_size = grid_size   # size of one side of grid
         self.image_dir = image_dir   # directory with images
         self.balanced = balanced     # faces get same wins/losses
+        self.analyze_inner_4x4 = analyze_inner_4x4 # only for grid size == 6
         # msg = 'N_responses is a string (e.g., "one") and N_contexts is an int'
         # assert (N_responses is not None) and (N_contexts is not None) and isinstance(N_responses, str) and isinstance(N_contexts, int), msg
-        self.grid = WineGrid(N_responses, N_contexts, balanced)
+        self.grid = WineGrid(N_responses, N_contexts, grid_size, 
+                             balanced, analyze_inner_4x4)
         
 
         # Create 1 fixed mapping from locs to idxs
@@ -652,8 +673,9 @@ def wine_grid_collate(samples):
     idx2_batch = [s[6] for s in samples]
     return f1_batch, f2_batch, ctx_batch, y1_batch, y2_batch, idx1_batch, idx2_batch
 
-def get_loaders(batch_size, meta, use_images, image_dir, n_episodes, \
-                N_responses, N_contexts, cortical_task, balanced):
+def get_loaders(batch_size, meta, use_images, image_dir, n_episodes,
+                N_responses, N_contexts, cortical_task, grid_size, balanced,
+                analyze_inner_4x4):
     if meta:
         # Train
         train_data = GridMetaDataset(testing=False, n_episodes=n_episodes)
@@ -685,19 +707,24 @@ def get_loaders(batch_size, meta, use_images, image_dir, n_episodes, \
         train_data = WineGridDataset(testing=False, analyzing=False, 
                                      N_contexts=N_contexts, N_responses=N_responses,
                                      use_images=use_images, image_dir=image_dir,
-                                     balanced=balanced)
+                                     grid_size=grid_size, balanced=balanced,
+                                     analyze_inner_4x4=analyze_inner_4x4)
         train_loader = DataLoader(train_data, batch_size=batch_size,
                                   shuffle=True, collate_fn=wine_grid_collate)
         # Test
         test_data = WineGridDataset(testing=True, analyzing=False,
                                     N_contexts=N_contexts, N_responses=N_responses,
-                                    use_images=use_images, image_dir=image_dir)
+                                    use_images=use_images, image_dir=image_dir,
+                                    grid_size=grid_size,
+                                    analyze_inner_4x4=analyze_inner_4x4)
         test_loader = DataLoader(test_data, batch_size=batch_size,
                                  shuffle=True, collate_fn=wine_grid_collate)
         # Analyze
         analyze_data = WineGridDataset(testing=False, analyzing=True, 
                                        N_contexts=N_contexts, N_responses=N_responses,
-                                       use_images=use_images, image_dir=image_dir)
+                                       use_images=use_images, image_dir=image_dir,
+                                       grid_size=grid_size,
+                                       analyze_inner_4x4=analyze_inner_4x4)
         analyze_loader = DataLoader(analyze_data, batch_size=1, 
                                     shuffle=False, collate_fn=wine_grid_collate)        
     

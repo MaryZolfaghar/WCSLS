@@ -946,11 +946,13 @@ def analyze_test_seq(args, test_data, cortical_result, dist_results):
     import sys
     sys.path.append("..")
     data = get_loaders(batch_size=32, meta=False,
-                      use_images=True, image_dir='./images/',
+                      use_images=args.use_images, image_dir='./images/',
                       n_episodes=None,
                       N_responses=args.N_responses, N_contexts=args.N_contexts,
                       cortical_task = args.cortical_task, #ToDo:check why it was set to cortical_task='face_task',
-                      balanced = args.balanced)
+                      grid_size = args.grid_size,
+                      balanced = args.balanced,
+                      analyze_inner_4x4 = args.analyze_inner_4x4)
     train_data, train_loader, test_data, test_loader, analyze_data, analyze_loader = data
 
     idx2loc = {idx:loc for loc, idx in test_data.loc2idx.items()}

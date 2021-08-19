@@ -75,6 +75,8 @@ parser.add_argument('--lesion_p', type=float, default=0.1,
                     help='Lesion probability')
 parser.add_argument('--grid_size', type=int, default=4,
                     help='Number of states per side of grid')
+parser.add_argument('--analyze_inner_4x4', action='store_true',
+                    help='Analyze inner 4x4 grid (only if grid_size == 6)')
 
 
 def main(args):
@@ -96,11 +98,14 @@ def main(args):
     if args.use_em:
         # Episodic memory system: Pre-train, test, analyze (hub retrieval)
         meta = True # meta-learning for episodic memory system
-        episodic_system = EpisodicSystem().to(device)
+        episodic_system = EpisodicSystem(args).to(device)
         data = get_loaders(batch_size=args.bs_episodic, meta=meta, 
                         use_images=False, image_dir=args.image_dir, 
                         n_episodes=args.N_episodic, 
-                        N_responses=None, N_contexts=None, cortical_task=None)
+                        N_responses=None, N_contexts=None, cortical_task=None,
+                        grid_size = args.grid_size,
+                        balanced = args.balanced,
+                        analyze_inner_4x4 = args.analyze_inner_4x4)
         train_data, train_loader, test_data, test_loader = data
         episodic_train_losses = train(meta, episodic_system, train_loader, args)
         episodic_train_acc = test(meta, episodic_system, train_loader, args)
@@ -154,7 +159,9 @@ def main(args):
                           n_episodes=None, N_responses=args.N_responses, 
                           N_contexts=args.N_contexts, 
                           cortical_task=args.cortical_task,
-                          balanced = args.balanced)
+                          grid_size = args.grid_size,
+                          balanced = args.balanced,
+                          analyze_inner_4x4 = args.analyze_inner_4x4)
         train_data, train_loader, test_data, test_loader, analyze_data, analyze_loader = data
         args.loc2idx = test_data.loc2idx
         # model
