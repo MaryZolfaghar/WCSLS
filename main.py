@@ -114,17 +114,12 @@ def main(args):
     # Cortical system: Train, test, analyze (PCA, correlation)
     meta = False # cortical learning is vanilla
     cortical_runs = []
-    # train_acc_runs, test_acc_runs = [], []
-    # n_gradients_ctx, n_gradients_f1, n_gradients_f2 = [], [], []
-    # n_gradients_ctx_cong, n_gradients_f1_cong, n_gradients_f2_cong = [], [], []
-    # n_gradients_ctx_incong, n_gradients_f1_incong, n_gradients_f2_incong = [], [], []
     congruencies = []
     for run in range(args.nruns_cortical):
         n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
         n_gradient_ctx_cong, n_gradient_f1_cong, n_gradient_f2_cong = [], [], []
         n_gradient_ctx_incong, n_gradient_f1_incong, n_gradient_f2_incong = [], [], []
         cortical_run = []
-        # train_acc_run, test_acc_run = [], []
         if args.cortical_model=='rnn':
             print('Cortical system is running with an LSTM')
             cortical_system = RecurrentCorticalSystem(args)
@@ -136,7 +131,6 @@ def main(args):
         elif args.cortical_model=='stepwisemlp':
             print('Cortical system is running with a StepwiseMLP')
             cortical_system = StepwiseCorticalSystem(args) 
-            # cortical_system.truncated_mlp = args.truncated_mlp
         elif args.cortical_model=='rnncell':
             print('Cortical system is running with a RNNCell')
             cortical_system = RNNCell(args)
@@ -353,10 +347,3 @@ if __name__ == '__main__':
 
     print(args)
     main(args)
-
-    # ToDo: the training day experiment is not complete yet, I only changed the dataset.py
-    # I need to change the main.py as well, I created the main_V2.py and changed train.py 
-    # The issue is in the main_V2 there is a loop, and the optimizer stuff should be zero_grade outside that loop
-    # But now I have train inside the loop and zero_grade stuff happens inside the loop which is wrong, 
-    # parser.add_argument('--training_day', type=str, default='day3',
-                        # help='Training on day1 or day1_day2 or day3 (all the training data')
