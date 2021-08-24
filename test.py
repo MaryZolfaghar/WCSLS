@@ -62,7 +62,11 @@ def test(meta, model, loader, args):
 
             if args.N_responses == 'one':    
                 c = (preds == y)
-                c = c.cpu().numpy().tolist()
+                c = c.cpu().numpy()
+                if c.size==1:
+                    c = [c]
+                else:
+                    c = c.tolist()
                 correct += c
                 for i, (i1, i2) in enumerate(zip(idx1, idx2)): # idx1 and 2 comes in a batch
                     cong = get_congruency(args, i1, i2)

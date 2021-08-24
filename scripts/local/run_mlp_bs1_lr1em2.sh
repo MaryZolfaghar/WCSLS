@@ -10,14 +10,15 @@ echo "Process mlp with batchsize=2"
 # N_cortical=2000, lr_cortical=1e-05, train acc : 0.5 , test acc: 0.5
 # N_cortical=2000, lr_cortical=1e-06, train acc : 0.5, test acc: 0.5
 # N_cortical=2000, lr_cortical=1e-07, train acc : 0.5, test acc: 0.5
+# N_cortical=2000, lr_cortical=15e-3, train acc : 0.5, test acc: 0.5
 
 
 python main.py \
 --cortical_model 'mlp' \
 --nruns_cortical 2 \
 --N_cortical 2000 \
---bs_cortical 2 \
---lr_cortical 0.01 \
+--bs_cortical 1 \
+--lr_cortical 0.0015 \
 --truncated_mlp 'false' \
 --out_file 'results_mlp_hyperparams.P' \
 --seed 0 \

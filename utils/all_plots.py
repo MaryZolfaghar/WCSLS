@@ -29,7 +29,11 @@ def boxplot_ratio_accs(df, args_dict, fig, ax):
         val_name, threshold = args_dict['val_name'], args_dict['threshold']
         mi, mx = args_dict['mi'], args_dict['mx']
         is_box_plot, is_accs_plot = args_dict['is_box_plot'], args_dict['is_accs_plot']
-        df_r, df_r_a_tr = df
+
+        if is_accs_plot:
+            df_r, df_r_a_tr = df
+        else:
+            df_r= df
 
         if analyze_name == 'analyze_ttest':
             val_name = 'tvalues_ttest'
