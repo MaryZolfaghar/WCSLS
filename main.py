@@ -45,7 +45,7 @@ parser.add_argument('--cortical_task', type=str, default='face_task',
                     help='The task for the cortical model - either face_task or wine_task')
 parser.add_argument('--image_dir', default='images/',
                     help='Path to directory containing face images')
-parser.add_argument('--N_cortical', type=int, default=1000,
+parser.add_argument('--N_cortical', type=int, default=6000,
                     help='Number of steps for training cortical system')
 parser.add_argument('--balanced', action='store_true', # ToDo:change this to store_true
                     help='Balance wins and losses of each face other than (0,0), (3,3). Only works with wine dataset')                 
@@ -53,7 +53,7 @@ parser.add_argument('--bs_cortical', type=int, default=1,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
                     help='Learning rate for cortical system')
-parser.add_argument('--nruns_cortical', type=int, default=20,
+parser.add_argument('--nruns_cortical', type=int, default=2,
                     help='Number of runs for cortical system')
 parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
@@ -75,6 +75,8 @@ parser.add_argument('--lesion_p', type=float, default=0.1,
                     help='Lesion probability')
 parser.add_argument('--sbs_analysis', action='store_true',
                     help='Whether analyzing step by step')
+parser.add_argument('--sbs_every', type=int, default=1, 
+                    help='Number of steps during training before analyzing step-by-step')
 
 
 
@@ -117,16 +119,19 @@ def main(args):
     # Cortical system: Train, test, analyze (PCA, correlation)
     meta = False # cortical learning is vanilla
     cortical_runs = []
-    cortical_runs_bef_c, cortical_runs_aft_c = [] , []
-    cortical_runs_bef_inc, cortical_runs_aft_inc = [] , [] 
+    # cortical_runs_bef_c, cortical_runs_aft_c = [] , []
+    # cortical_runs_bef_inc, cortical_runs_aft_inc = [] , [] 
     congruencies = []
+    cortical_runs_ratio_diffs = [] 
     for run in range(args.nruns_cortical):
         n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
         n_gradient_ctx_cong, n_gradient_f1_cong, n_gradient_f2_cong = [], [], []
         n_gradient_ctx_incong, n_gradient_f1_incong, n_gradient_f2_incong = [], [], []
         cortical_run = []
-        cortical_run_bef_c, cortical_run_aft_c = [] , [] 
-        cortical_run_bef_inc, cortical_run_aft_inc = [] , [] 
+        # one list for cong/incong
+        cortical_run_ratio_diffs = [] # tuples of (diff, cong/incong)
+        # cortical_run_bef_c, cortical_run_aft_c = [] , [] 
+        # cortical_run_bef_inc, cortical_run_aft_inc = [] , [] 
         if args.cortical_model=='rnn':
             print('Cortical system is running with an LSTM')
             cortical_system = RecurrentCorticalSystem(args)
@@ -254,29 +259,11 @@ def main(args):
                 # analyze before taking a step
                 # -------------------------------------------------------------------------------
                 if args.sbs_analysis:
-                    if i % 50 == 0:
-                        # 1: congruent, -1:incongruent, 0:none
-                        cong = get_congruency(args, idx1[0], idx2[0])
-
-                        cortical_train_acc, _ , cong_train_acc, incong_train_acc = test(meta, cortical_system, train_loader, args)
-                        cortical_test_acc, _, cong_test_acc, incong_test_acc  = test(meta, cortical_system, test_loader, args)
-                        cortical_system.analyze=True
-                        cortical_analyze_acc, cortical_analyze_correct, _, _ = test(meta, cortical_system, analyze_loader, args)
-                        cortical_system.analyze=False
-                        cortical_result = analyze_cortical(cortical_system, test_data, analyze_loader, args)
-                        cortical_result['train_acc'] = cortical_train_acc
-                        cortical_result['test_acc'] = cortical_test_acc
-                        cortical_result['cong_train_acc'] = cong_train_acc
-                        cortical_result['incong_train_acc'] = incong_train_acc
-                        cortical_result['cong_test_acc'] = cong_test_acc
-                        cortical_result['incong_test_acc'] = incong_test_acc
-                        cortical_result['analyze_acc'] = cortical_analyze_acc
-                        cortical_result['analyze_correct'] = cortical_analyze_correct
-                        if cong==1:
-                            cortical_run_bef_c.append(cortical_result)
-                        if cong==-1:
-                            cortical_run_bef_inc.append(cortical_result)
-
+                    if i % args.sbs_every == 0:
+                        cortical_result_b = analyze_cortical(cortical_system, test_data, analyze_loader, args)
+                        dist_result_b      = calc_dist(args, test_data, cortical_result_b, dist_results=None)    
+                        ratio_b           = calc_ratio(args, test_data, cortical_result_b, dist_result_b)
+                        
                 # -------------------------------------------------------------------------------
                 # take a step
                 # -------------------------------------------------------------------------------
@@ -296,29 +283,21 @@ def main(args):
                 # analyze after taking a step
                 # -------------------------------------------------------------------------------
                 if args.sbs_analysis:
-                    if i % 50 == 0:
+                    if i % args.sbs_every == 0:
                         # 1: congruent, -1:incongruent, 0:none
                         cong = get_congruency(args, idx1[0], idx2[0])
+                        # get rid of the accs stuff here
+                        # get these: cortical_run_b, cortical_run_a, cong/incong, 
+                        # calc_dist(cortical_run_b), calc_dist(cortical_run_a)
+                        # ratio_b = calc_ratio(cortical_run_b), ratio_a = calc_ratio(cortical_run_a)
+                        # diff = raio_a - ratio_b
+                        # scalar cong, incong
 
-                        cortical_train_acc, _ , cong_train_acc, incong_train_acc = test(meta, cortical_system, train_loader, args)
-                        cortical_test_acc, _, cong_test_acc, incong_test_acc  = test(meta, cortical_system, test_loader, args)
-                        cortical_system.analyze=True
-                        cortical_analyze_acc, cortical_analyze_correct, _, _ = test(meta, cortical_system, analyze_loader, args)
-                        cortical_system.analyze=False
-                        cortical_result = analyze_cortical(cortical_system, test_data, analyze_loader, args)
-                        cortical_result['train_acc'] = cortical_train_acc
-                        cortical_result['test_acc'] = cortical_test_acc
-                        cortical_result['cong_train_acc'] = cong_train_acc
-                        cortical_result['incong_train_acc'] = incong_train_acc
-                        cortical_result['cong_test_acc'] = cong_test_acc
-                        cortical_result['incong_test_acc'] = incong_test_acc
-                        cortical_result['analyze_acc'] = cortical_analyze_acc
-                        cortical_result['analyze_correct'] = cortical_analyze_correct
-
-                        if cong==1:
-                            cortical_run_aft_c.append(cortical_result)
-                        if cong==-1:
-                            cortical_run_aft_inc.append(cortical_result)
+                        cortical_result_a = analyze_cortical(cortical_system, test_data, analyze_loader, args)
+                        dist_result_a      = calc_dist(args, test_data, cortical_result_a, dist_results=None)    
+                        ratio_a           = calc_ratio(args, test_data, cortical_result_a, dist_result_a)
+                        diff_ratio = ratio_a['ratio_embed'] - ratio_b['ratio_embed']
+                        cortical_run_ratio_diffs.append((diff_ratio, cong))
 
                 # -------------------------------------------------------------------------------
                 # analyze after taking a step - each checkpoint
@@ -363,10 +342,7 @@ def main(args):
                     break
                 i += 1
         cortical_runs.append(cortical_run)
-        cortical_runs_bef_c.append(cortical_run_bef_c)
-        cortical_runs_aft_c.append(cortical_run_aft_c)
-        cortical_runs_bef_inc.append(cortical_run_bef_inc)
-        cortical_runs_aft_inc.append(cortical_run_aft_inc)
+        cortical_runs_ratio_diffs.append(cortical_run_ratio_diffs)
         
         print("Cortical system training accuracy:", cortical_train_acc)
         print("Cortical system testing accuracy:", cortical_test_acc)
@@ -374,23 +350,13 @@ def main(args):
 
     # End run
     print('num of checkpoints: ', len(cortical_run))
+    args.ncheckpoints_cortical = len(cortical_run)
     print('num of runs: ', len(cortical_runs))
     # cortical_train_losses, cortical_system = train(meta, cortical_system, train_loader, args)
     cortical_train_losses = train_losses
     cortical_train_acc, _, _, _ = test(meta, cortical_system, train_loader, args)
     cortical_test_acc, _, _, _ = test(meta, cortical_system, test_loader, args)
     
-    orig_out_file = args.out_file
-    args.out_file = 'bef_c_' + orig_out_file
-    cortical_mrun_results = run_analyze(args, test_data, cortical_runs_bef_c)
-    args.out_file = 'aft_c_' + orig_out_file
-    cortical_mrun_results = run_analyze(args, test_data, cortical_runs_aft_c)
-    args.out_file = 'bef_inc_' + orig_out_file
-    cortical_mrun_results = run_analyze(args, test_data, cortical_runs_bef_inc)
-    args.out_file = 'aft_inc_' + orig_out_file
-    cortical_mrun_results = run_analyze(args, test_data, cortical_runs_aft_inc)
-
-    args.out_file = orig_out_file
     cortical_mrun_results = run_analyze(args, test_data, cortical_runs)
 
     cortical_results = {'loss': cortical_train_losses,
@@ -399,6 +365,11 @@ def main(args):
                         'analyze_acc': cortical_analyze_acc,
                         'analyze_correct': cortical_analyze_correct,
                         'analysis': cortical_mrun_results}
+    if args.sbs_analysis:
+        # 20 runs, each list of tuples (diff, congruency), save these
+        # 20 sets of two lines(for cong and incong), diff x
+        cortical_results['cortical_runs_ratio_diffs'] = cortical_runs_ratio_diffs
+    
     if not args.use_em:
         episodic_results = {}
     
@@ -407,23 +378,28 @@ def main(args):
     
     with open('../results/'+args.out_file, 'wb') as f:
         pickle.dump(results, f)
-
+# only ttest, ratio for sbs
 if __name__ == '__main__':
     args = parser.parse_args()
-    analysis_names = ['analyze_accs','hist_data', 'calc_ratio', \
+
+    # for step-by-step analysis, since it is computationally expensive
+    # we only do one analysis (ratio) for it 
+    if args.sbs_analysis:
+        analysis_names = ['calc_ratio']
+        analysis_funcs = [calc_ratio]
+    else:
+        analysis_names = ['analyze_accs','hist_data', 'calc_ratio', \
                       'analyze_dim_red', 'analyze_ttest', 'analyze_corr', \
                       'analyze_regression', 'analyze_regression_1D', \
                       'analyze_regression_exc', 'analyze_test_seq', 'proportions']
-
-    analysis_funcs = [analyze_accs, hist_data, calc_ratio, \
+        analysis_funcs = [analyze_accs, hist_data, calc_ratio, \
                       analyze_dim_red, analyze_ttest, analyze_corr, \
                       analyze_regression, analyze_regression_1D, \
                       analyze_regression_exc, analyze_test_seq, proportions]
-                      
+    
     if args.measure_grad_norm:
         analysis_names.append('analyze_credit_assignment')
         analysis_funcs.append(analyze_credit_assignment)
-    
     
     args.analysis_names = analysis_names
     args.analysis_funcs = analysis_funcs

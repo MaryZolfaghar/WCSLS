@@ -2,6 +2,8 @@ from utils.util import *
 
 def run_analyze(args, test_data, cortical_results):
     n_runs, n_checkpoints = args.nruns_cortical, len(cortical_results[0])
+    # n_runs, n_checkpoints = args.nruns_cortical, args.ncheckpoints_cortical
+    
     analysis_dict = anlysis_to_dict(args)
     for analyze_name, analyze_func in analysis_dict.items():
         runs = {}

@@ -1,0 +1,630 @@
+(csls) dynamic-oit-visitornet101-10-24-109-4:WCSLS maryam$ ./scripts/local/run_rnn_ctxF_sbs.sh 
+Process rnn with batchsize=1, lr=15e-3 starts
+Namespace(N_contexts=2, N_cortical=8000, N_episodic=1000, N_responses='one', analysis_funcs=[<function calc_ratio at 0x7f989f0749d8>], analysis_names=['calc_ratio'], balanced=False, bs_cortical=1, bs_episodic=16, checkpoints=50, cortical_model='rnn', cortical_task='face_task', dimred_method='pca', image_dir='images/', is_lesion=False, lesion_p=0.1, lr_cortical=0.0015, lr_episodic=0.001, measure_grad_norm=False, nruns_cortical=20, order_ctx='first', out_file='ctxF_results_rnn_sbs.P', print_every=300, sbs_analysis=True, sbs_every=20, seed=0, truncated_mlp='false', use_cuda=False, use_em=False, use_images=True)
+Using CUDA:  False
+Cortical system is running with an LSTM
+/opt/anaconda3/envs/csls/lib/python3.6/site-packages/torch/nn/functional.py:718: UserWarning: Named tensors and all their associated APIs are an experimental feature and subject to change. Please do not use them for anything important until they are released as stable. (Triggered internally at  /Users/distiller/project/conda/conda-bld/pytorch_1623459046073/work/c10/core/TensorImpl.h:1156.)
+  return torch.max_pool2d(input, kernel_size, stride, padding, dilation, ceil_mode)
+Run: 0, Step: 0, Loss: 0.6860944032669067
+Run: 0, Step: 300, Loss: 0.6969485996166865
+Run: 0, Step: 600, Loss: 0.6949753777186076
+Run: 0, Step: 900, Loss: 0.6942104256153107
+Run: 0, Step: 1200, Loss: 0.694966989159584
+Run: 0, Step: 1500, Loss: 0.6629074788101328
+Run: 0, Step: 1800, Loss: 0.6212419604610963
+Run: 0, Step: 2100, Loss: 0.5986339667610203
+Run: 0, Step: 2400, Loss: 0.5458694453684924
+Run: 0, Step: 2700, Loss: 0.4964207454487405
+Run: 0, Step: 3000, Loss: 0.4470110493690663
+Run: 0, Step: 3300, Loss: 0.3757472292844011
+Run: 0, Step: 3600, Loss: 0.321900092018832
+Run: 0, Step: 3900, Loss: 0.3177329938499196
+Run: 0, Step: 4200, Loss: 0.3908682920924092
+Run: 0, Step: 4500, Loss: 0.30868260501026856
+Run: 0, Step: 4800, Loss: 0.2636931683057558
+Run: 0, Step: 5100, Loss: 0.21016860654662536
+Run: 0, Step: 5400, Loss: 0.30830515311957435
+Run: 0, Step: 5700, Loss: 0.15255714749030078
+Run: 0, Step: 6000, Loss: 0.12194287676017398
+Run: 0, Step: 6300, Loss: 0.06067584885161755
+Run: 0, Step: 6600, Loss: 0.022208870233996005
+Run: 0, Step: 6900, Loss: 0.009230892831563224
+Run: 0, Step: 7200, Loss: 0.004403379660614703
+Run: 0, Step: 7500, Loss: 0.002451655949396567
+Run: 0, Step: 7800, Loss: 0.0017227142893343483
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.19791667 0.98958333]
+Cortical system is running with an LSTM
+Run: 1, Step: 0, Loss: 0.7119938135147095
+Run: 1, Step: 300, Loss: 0.6966172504425049
+Run: 1, Step: 600, Loss: 0.6962082566817601
+Run: 1, Step: 900, Loss: 0.6939083311955134
+Run: 1, Step: 1200, Loss: 0.6943317763010661
+Run: 1, Step: 1500, Loss: 0.6971986679236094
+Run: 1, Step: 1800, Loss: 0.6958455649018288
+Run: 1, Step: 2100, Loss: 0.7085199510368209
+Run: 1, Step: 2400, Loss: 0.6430462631086509
+Run: 1, Step: 2700, Loss: 0.5846673857048154
+Run: 1, Step: 3000, Loss: 0.5299330802836145
+Run: 1, Step: 3300, Loss: 0.3749482891658166
+Run: 1, Step: 3600, Loss: 0.3513377580647163
+Run: 1, Step: 3900, Loss: 0.43998421817994615
+Run: 1, Step: 4200, Loss: 0.33244070131593617
+Run: 1, Step: 4500, Loss: 0.2888517555377136
+Run: 1, Step: 4800, Loss: 0.2903320684223339
+Run: 1, Step: 5100, Loss: 0.2071903900180708
+Run: 1, Step: 5400, Loss: 0.21760922648873324
+Run: 1, Step: 5700, Loss: 0.045116744620875886
+Run: 1, Step: 6000, Loss: 0.010624616868114268
+Run: 1, Step: 6300, Loss: 0.0024278704141412768
+Run: 1, Step: 6600, Loss: 0.0014704630256422509
+Run: 1, Step: 6900, Loss: 0.0009762548579768312
+Run: 1, Step: 7200, Loss: 0.0007045720593002139
+Run: 1, Step: 7500, Loss: 0.0005565589897851927
+Run: 1, Step: 7800, Loss: 0.00042263949073306626
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.17708333 1.        ]
+Cortical system is running with an LSTM
+Run: 2, Step: 0, Loss: 0.7156269550323486
+Run: 2, Step: 300, Loss: 0.6967148085435232
+Run: 2, Step: 600, Loss: 0.6960503693421681
+Run: 2, Step: 900, Loss: 0.6944877912600835
+Run: 2, Step: 1200, Loss: 0.6948581484953562
+Run: 2, Step: 1500, Loss: 0.6936391909917196
+Run: 2, Step: 1800, Loss: 0.6943118218580882
+Run: 2, Step: 2100, Loss: 0.6967443382740021
+Run: 2, Step: 2400, Loss: 0.6937404441833496
+Run: 2, Step: 2700, Loss: 0.6948847170670828
+Run: 2, Step: 3000, Loss: 0.6938849353790283
+Run: 2, Step: 3300, Loss: 0.6936343777179718
+Run: 2, Step: 3600, Loss: 0.6940203974644343
+Run: 2, Step: 3900, Loss: 0.6939556147654852
+Run: 2, Step: 4200, Loss: 0.6939151418209076
+Run: 2, Step: 4500, Loss: 0.6964123010635376
+Run: 2, Step: 4800, Loss: 0.6939191124836603
+Run: 2, Step: 5100, Loss: 0.6937541006008784
+Run: 2, Step: 5400, Loss: 0.6936626535654068
+Run: 2, Step: 5700, Loss: 0.6937948660055796
+Run: 2, Step: 6000, Loss: 0.6936124571164449
+Run: 2, Step: 6300, Loss: 0.6940419234832128
+Run: 2, Step: 6600, Loss: 0.6937279681364695
+Run: 2, Step: 6900, Loss: 0.6935935765504837
+Run: 2, Step: 7200, Loss: 0.6937013095617295
+Run: 2, Step: 7500, Loss: 0.6935465343793233
+Run: 2, Step: 7800, Loss: 0.6941925152142843
+Cortical system training accuracy: 0.5
+Cortical system testing accuracy: 0.5
+Cortical system analyzing accuracy: [0.5 0.5 0.5]
+Cortical system is running with an LSTM
+Run: 3, Step: 0, Loss: 0.7125855684280396
+Run: 3, Step: 300, Loss: 0.6966168886423111
+Run: 3, Step: 600, Loss: 0.6959930634498597
+Run: 3, Step: 900, Loss: 0.6963595259189606
+Run: 3, Step: 1200, Loss: 0.6943305949370067
+Run: 3, Step: 1500, Loss: 0.6938390189409256
+Run: 3, Step: 1800, Loss: 0.6941342165072759
+Run: 3, Step: 2100, Loss: 0.6941168145338694
+Run: 3, Step: 2400, Loss: 0.6937307014067968
+Run: 3, Step: 2700, Loss: 0.6938879565397899
+Run: 3, Step: 3000, Loss: 0.6938348476092021
+Run: 3, Step: 3300, Loss: 0.6937171224753061
+Run: 3, Step: 3600, Loss: 0.6940865484873454
+Run: 3, Step: 3900, Loss: 0.6937692350149155
+Run: 3, Step: 4200, Loss: 0.6987775722146035
+Run: 3, Step: 4500, Loss: 0.6939036915699641
+Run: 3, Step: 4800, Loss: 0.6939621257781983
+Run: 3, Step: 5100, Loss: 0.6936460739374161
+Run: 3, Step: 5400, Loss: 0.6938649670282999
+Run: 3, Step: 5700, Loss: 0.6938961517810821
+Run: 3, Step: 6000, Loss: 0.6941579530636469
+Run: 3, Step: 6300, Loss: 0.6942715332905451
+Run: 3, Step: 6600, Loss: 0.6937137099107107
+Run: 3, Step: 6900, Loss: 0.6937243366241455
+Run: 3, Step: 7200, Loss: 0.6938032613197962
+Run: 3, Step: 7500, Loss: 0.6939508879184723
+Run: 3, Step: 7800, Loss: 0.6938998500506083
+Cortical system training accuracy: 0.5
+Cortical system testing accuracy: 0.5
+Cortical system analyzing accuracy: [0.5 0.5 0.5]
+Cortical system is running with an LSTM
+Run: 4, Step: 0, Loss: 0.6383165717124939
+Run: 4, Step: 300, Loss: 0.697629004518191
+Run: 4, Step: 600, Loss: 0.6950819158554077
+Run: 4, Step: 900, Loss: 0.6952686123053233
+Run: 4, Step: 1200, Loss: 0.6937828580538432
+Run: 4, Step: 1500, Loss: 0.7028196700941771
+Run: 4, Step: 1800, Loss: 0.6403314700070769
+Run: 4, Step: 2100, Loss: 0.613781467055281
+Run: 4, Step: 2400, Loss: 0.5665859891831254
+Run: 4, Step: 2700, Loss: 0.5229028388264123
+Run: 4, Step: 3000, Loss: 0.4049829173021863
+Run: 4, Step: 3300, Loss: 0.32813591015762844
+Run: 4, Step: 3600, Loss: 0.31212088230750096
+Run: 4, Step: 3900, Loss: 0.20072932895884832
+Run: 4, Step: 4200, Loss: 0.1689303941489402
+Run: 4, Step: 4500, Loss: 0.019242958294675722
+Run: 4, Step: 4800, Loss: 0.003597928427449991
+Run: 4, Step: 5100, Loss: 0.0017893668516188654
+Run: 4, Step: 5400, Loss: 0.0011528960959693297
+Run: 4, Step: 5700, Loss: 0.0008274008650343726
+Run: 4, Step: 6000, Loss: 0.0006323411430614101
+Run: 4, Step: 6300, Loss: 0.00043759708492321654
+Run: 4, Step: 6600, Loss: 0.0003521443033831654
+Run: 4, Step: 6900, Loss: 0.0002797384736651054
+Run: 4, Step: 7200, Loss: 0.00022386194742727146
+Run: 4, Step: 7500, Loss: 0.00018145258960882888
+Run: 4, Step: 7800, Loss: 0.00014305399766721886
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.19791667 1.        ]
+Cortical system is running with an LSTM
+Run: 5, Step: 0, Loss: 0.6676365733146667
+Run: 5, Step: 300, Loss: 0.6978226725260417
+Run: 5, Step: 600, Loss: 0.6962510712941488
+Run: 5, Step: 900, Loss: 0.6944068137804668
+Run: 5, Step: 1200, Loss: 0.6941599603494009
+Run: 5, Step: 1500, Loss: 0.6822474658985933
+Run: 5, Step: 1800, Loss: 0.6532193789879481
+Run: 5, Step: 2100, Loss: 0.6145407624542714
+Run: 5, Step: 2400, Loss: 0.5905492808421453
+Run: 5, Step: 2700, Loss: 0.5675838418056568
+Run: 5, Step: 3000, Loss: 0.5467861966540416
+Run: 5, Step: 3300, Loss: 0.4865469100823005
+Run: 5, Step: 3600, Loss: 0.4000449644845988
+Run: 5, Step: 3900, Loss: 0.35650377333076905
+Run: 5, Step: 4200, Loss: 0.19597009107432314
+Run: 5, Step: 4500, Loss: 0.08915221752095173
+Run: 5, Step: 4800, Loss: 0.013853864672181165
+Run: 5, Step: 5100, Loss: 0.003290716466153943
+Run: 5, Step: 5400, Loss: 0.0018987400391528317
+Run: 5, Step: 5700, Loss: 0.0011923018963687563
+Run: 5, Step: 6000, Loss: 0.0008921626865749725
+Run: 5, Step: 6300, Loss: 0.0006046046695857398
+Run: 5, Step: 6600, Loss: 0.00047845815752793895
+Run: 5, Step: 6900, Loss: 0.0003837888969664031
+Run: 5, Step: 7200, Loss: 0.0002959390414884903
+Run: 5, Step: 7500, Loss: 0.0002321277090850534
+Run: 5, Step: 7800, Loss: 0.00018150833032898106
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.36458333 0.99479167]
+Cortical system is running with an LSTM
+Run: 6, Step: 0, Loss: 0.7368712425231934
+Run: 6, Step: 300, Loss: 0.6986867409944534
+Run: 6, Step: 600, Loss: 0.6951636413733164
+Run: 6, Step: 900, Loss: 0.694533274769783
+Run: 6, Step: 1200, Loss: 0.6951160335540771
+Run: 6, Step: 1500, Loss: 0.6943711290756861
+Run: 6, Step: 1800, Loss: 0.6936513358354568
+Run: 6, Step: 2100, Loss: 0.6961370116472244
+Run: 6, Step: 2400, Loss: 0.6937541673580806
+Run: 6, Step: 2700, Loss: 0.689220652282238
+Run: 6, Step: 3000, Loss: 0.6626860336090128
+Run: 6, Step: 3300, Loss: 0.6331322357431054
+Run: 6, Step: 3600, Loss: 0.6247743760794401
+Run: 6, Step: 3900, Loss: 0.6113589806233843
+Run: 6, Step: 4200, Loss: 0.5858548059811195
+Run: 6, Step: 4500, Loss: 0.587313252221793
+Run: 6, Step: 4800, Loss: 0.5757825238614653
+Run: 6, Step: 5100, Loss: 0.5795173540649314
+Run: 6, Step: 5400, Loss: 0.5714250529817461
+Run: 6, Step: 5700, Loss: 0.5899488635423282
+Run: 6, Step: 6000, Loss: 0.5692488688929006
+Run: 6, Step: 6300, Loss: 0.5673625472366499
+Run: 6, Step: 6600, Loss: 0.5597310242363407
+Run: 6, Step: 6900, Loss: 0.5573458807193674
+Run: 6, Step: 7200, Loss: 0.5666826555001414
+Run: 6, Step: 7500, Loss: 0.5394032285975603
+Run: 6, Step: 7800, Loss: 0.5589282565022586
+Cortical system training accuracy: 0.71875
+Cortical system testing accuracy: 0.8125
+Cortical system analyzing accuracy: [0.5        0.32291667 0.78125   ]
+Cortical system is running with an LSTM
+Run: 7, Step: 0, Loss: 0.7295036911964417
+Run: 7, Step: 300, Loss: 0.6986605679988861
+Run: 7, Step: 600, Loss: 0.6953933346271515
+Run: 7, Step: 900, Loss: 0.6950545901060105
+Run: 7, Step: 1200, Loss: 0.6947977950175603
+Run: 7, Step: 1500, Loss: 0.6940872404972712
+Run: 7, Step: 1800, Loss: 0.6938346342245738
+Run: 7, Step: 2100, Loss: 0.6944113445281982
+Run: 7, Step: 2400, Loss: 0.6941398765643437
+Run: 7, Step: 2700, Loss: 0.6949238572518031
+Run: 7, Step: 3000, Loss: 0.6977214925984542
+Run: 7, Step: 3300, Loss: 0.6614493551850319
+Run: 7, Step: 3600, Loss: 0.6091108044485251
+Run: 7, Step: 3900, Loss: 0.6332798564247787
+Run: 7, Step: 4200, Loss: 0.5741871826909483
+Run: 7, Step: 4500, Loss: 0.5740832778190573
+Run: 7, Step: 4800, Loss: 0.5761665405829748
+Run: 7, Step: 5100, Loss: 0.5526932959072292
+Run: 7, Step: 5400, Loss: 0.545278278576831
+Run: 7, Step: 5700, Loss: 0.5453737029898912
+Run: 7, Step: 6000, Loss: 0.5573493204195984
+Run: 7, Step: 6300, Loss: 0.5155095096227402
+Run: 7, Step: 6600, Loss: 0.5380544887279393
+Run: 7, Step: 6900, Loss: 0.5340507492710216
+Run: 7, Step: 7200, Loss: 0.5059055723797065
+Run: 7, Step: 7500, Loss: 0.3757500941265243
+Run: 7, Step: 7800, Loss: 0.31092875096751715
+Cortical system training accuracy: 0.925
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.21875    0.94791667]
+Cortical system is running with an LSTM
+Run: 8, Step: 0, Loss: 0.7327900528907776
+Run: 8, Step: 300, Loss: 0.6976334069172542
+Run: 8, Step: 600, Loss: 0.6948873490095139
+Run: 8, Step: 900, Loss: 0.6944678330421448
+Run: 8, Step: 1200, Loss: 0.6943498170375824
+Run: 8, Step: 1500, Loss: 0.6940692939360936
+Run: 8, Step: 1800, Loss: 0.6951637244224549
+Run: 8, Step: 2100, Loss: 0.6946135055025419
+Run: 8, Step: 2400, Loss: 0.6661352096498012
+Run: 8, Step: 2700, Loss: 0.6369343513250351
+Run: 8, Step: 3000, Loss: 0.6247225911542773
+Run: 8, Step: 3300, Loss: 0.5136860753813137
+Run: 8, Step: 3600, Loss: 0.403335674420523
+Run: 8, Step: 3900, Loss: 0.3829389096341523
+Run: 8, Step: 4200, Loss: 0.3311956299273394
+Run: 8, Step: 4500, Loss: 0.35723356846182774
+Run: 8, Step: 4800, Loss: 0.3415132480006438
+Run: 8, Step: 5100, Loss: 0.3381235770465855
+Run: 8, Step: 5400, Loss: 0.34089610652342
+Run: 8, Step: 5700, Loss: 0.36568489576549534
+Run: 8, Step: 6000, Loss: 0.29483492500524183
+Run: 8, Step: 6300, Loss: 0.21268896224591174
+Run: 8, Step: 6600, Loss: 0.1988810902676759
+Run: 8, Step: 6900, Loss: 0.13968625207194474
+Run: 8, Step: 7200, Loss: 0.05332879768519959
+Run: 8, Step: 7500, Loss: 0.01524990557118161
+Run: 8, Step: 7800, Loss: 0.00591704705486246
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.21875    0.98958333]
+Cortical system is running with an LSTM
+Run: 9, Step: 0, Loss: 0.6466785073280334
+Run: 9, Step: 300, Loss: 0.7001817746957143
+Run: 9, Step: 600, Loss: 0.6950420914093653
+Run: 9, Step: 900, Loss: 0.6944873110453288
+Run: 9, Step: 1200, Loss: 0.6959637699524561
+Run: 9, Step: 1500, Loss: 0.6943762469291687
+Run: 9, Step: 1800, Loss: 0.6875129730751117
+Run: 9, Step: 2100, Loss: 0.677498632359008
+Run: 9, Step: 2400, Loss: 0.6437489397140841
+Run: 9, Step: 2700, Loss: 0.6260394824606677
+Run: 9, Step: 3000, Loss: 0.6162284663130292
+Run: 9, Step: 3300, Loss: 0.6095946801531439
+Run: 9, Step: 3600, Loss: 0.5869642704927052
+Run: 9, Step: 3900, Loss: 0.5691796626558062
+Run: 9, Step: 4200, Loss: 0.576163698573752
+Run: 9, Step: 4500, Loss: 0.5682309916289523
+Run: 9, Step: 4800, Loss: 0.5677679872823258
+Run: 9, Step: 5100, Loss: 0.593903439337931
+Run: 9, Step: 5400, Loss: 0.5420031975560899
+Run: 9, Step: 5700, Loss: 0.5455888300722775
+Run: 9, Step: 6000, Loss: 0.5428511330050727
+Run: 9, Step: 6300, Loss: 0.552668053387121
+Run: 9, Step: 6600, Loss: 0.5381567411269862
+Run: 9, Step: 6900, Loss: 0.5108972000284484
+Run: 9, Step: 7200, Loss: 0.44478975128702813
+Run: 9, Step: 7500, Loss: 0.3339389914040774
+Run: 9, Step: 7800, Loss: 0.2923438205738837
+Cortical system training accuracy: 0.88125
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5       0.21875   0.9140625]
+Cortical system is running with an LSTM
+Run: 10, Step: 0, Loss: 0.7079335451126099
+Run: 10, Step: 300, Loss: 0.6988803776105245
+Run: 10, Step: 600, Loss: 0.6942295501629512
+Run: 10, Step: 900, Loss: 0.694523136417071
+Run: 10, Step: 1200, Loss: 0.694181102514267
+Run: 10, Step: 1500, Loss: 0.6958679529031118
+Run: 10, Step: 1800, Loss: 0.6938335494200388
+Run: 10, Step: 2100, Loss: 0.7145611581330498
+Run: 10, Step: 2400, Loss: 0.6784285464882851
+Run: 10, Step: 2700, Loss: 0.6404843229055405
+Run: 10, Step: 3000, Loss: 0.5894265015485386
+Run: 10, Step: 3300, Loss: 0.4837680756259942
+Run: 10, Step: 3600, Loss: 0.41240625283826376
+Run: 10, Step: 3900, Loss: 0.3207349917453151
+Run: 10, Step: 4200, Loss: 0.3024163748759702
+Run: 10, Step: 4500, Loss: 0.24833567735303025
+Run: 10, Step: 4800, Loss: 0.19853147821094408
+Run: 10, Step: 5100, Loss: 0.14604811746629914
+Run: 10, Step: 5400, Loss: 0.028904432219430874
+Run: 10, Step: 5700, Loss: 0.00610736316972132
+Run: 10, Step: 6000, Loss: 0.003353402921926995
+Run: 10, Step: 6300, Loss: 0.0019073204366883089
+Run: 10, Step: 6600, Loss: 0.0013562147626214483
+Run: 10, Step: 6900, Loss: 0.0010105715759227015
+Run: 10, Step: 7200, Loss: 0.0006970227242831583
+Run: 10, Step: 7500, Loss: 0.0005515612697996393
+Run: 10, Step: 7800, Loss: 0.00040940087792381045
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.23958333 1.        ]
+Cortical system is running with an LSTM
+Run: 11, Step: 0, Loss: 0.715714156627655
+Run: 11, Step: 300, Loss: 0.696883792479833
+Run: 11, Step: 600, Loss: 0.6948243572314581
+Run: 11, Step: 900, Loss: 0.6945717666546504
+Run: 11, Step: 1200, Loss: 0.6958789104223251
+Run: 11, Step: 1500, Loss: 0.6937350926796595
+Run: 11, Step: 1800, Loss: 0.6871820678561926
+Run: 11, Step: 2100, Loss: 0.6956736149390539
+Run: 11, Step: 2400, Loss: 0.6747060912350814
+Run: 11, Step: 2700, Loss: 0.6400961384200491
+Run: 11, Step: 3000, Loss: 0.6286633642812376
+Run: 11, Step: 3300, Loss: 0.5886844529726174
+Run: 11, Step: 3600, Loss: 0.5856864502411069
+Run: 11, Step: 3900, Loss: 0.4941986272015227
+Run: 11, Step: 4200, Loss: 0.43584946498146765
+Run: 11, Step: 4500, Loss: 0.4102246206545312
+Run: 11, Step: 4800, Loss: 0.4185279810066564
+Run: 11, Step: 5100, Loss: 0.36901850790506385
+Run: 11, Step: 5400, Loss: 0.3342395189338921
+Run: 11, Step: 5700, Loss: 0.3346469363698812
+Run: 11, Step: 6000, Loss: 0.2916508080112511
+Run: 11, Step: 6300, Loss: 0.27951792365165534
+Run: 11, Step: 6600, Loss: 0.2699329703632132
+Run: 11, Step: 6900, Loss: 0.3461583028917967
+Run: 11, Step: 7200, Loss: 0.2516747975072215
+Run: 11, Step: 7500, Loss: 0.1921276290528238
+Run: 11, Step: 7800, Loss: 0.23870621287606988
+Cortical system training accuracy: 0.90625
+Cortical system testing accuracy: 0.9375
+Cortical system analyzing accuracy: [0.5        0.36458333 0.93489583]
+Cortical system is running with an LSTM
+Run: 12, Step: 0, Loss: 0.6592687964439392
+Run: 12, Step: 300, Loss: 0.6995116261641184
+Run: 12, Step: 600, Loss: 0.6945803473393123
+Run: 12, Step: 900, Loss: 0.6947194943825404
+Run: 12, Step: 1200, Loss: 0.6950826664765676
+Run: 12, Step: 1500, Loss: 0.6943199394146601
+Run: 12, Step: 1800, Loss: 0.6936845952272415
+Run: 12, Step: 2100, Loss: 0.691222851673762
+Run: 12, Step: 2400, Loss: 0.6679794501761596
+Run: 12, Step: 2700, Loss: 0.6369634087135394
+Run: 12, Step: 3000, Loss: 0.6241862289359172
+Run: 12, Step: 3300, Loss: 0.546407462998759
+Run: 12, Step: 3600, Loss: 0.5357061564324734
+Run: 12, Step: 3900, Loss: 0.40817971742132914
+Run: 12, Step: 4200, Loss: 0.332866831040337
+Run: 12, Step: 4500, Loss: 0.28954321882168477
+Run: 12, Step: 4800, Loss: 0.2837612730894669
+Run: 12, Step: 5100, Loss: 0.41950281517793686
+Run: 12, Step: 5400, Loss: 0.2827764786349184
+Run: 12, Step: 5700, Loss: 0.2238041996466528
+Run: 12, Step: 6000, Loss: 0.19603330265979607
+Run: 12, Step: 6300, Loss: 0.10565356813301088
+Run: 12, Step: 6600, Loss: 0.06992252401348834
+Run: 12, Step: 6900, Loss: 0.01525528868608165
+Run: 12, Step: 7200, Loss: 0.0036678110073872718
+Run: 12, Step: 7500, Loss: 0.0020670445556837318
+Run: 12, Step: 7800, Loss: 0.0012112120505644224
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.23958333 1.        ]
+Cortical system is running with an LSTM
+Run: 13, Step: 0, Loss: 0.6939352750778198
+Run: 13, Step: 300, Loss: 0.6986197359363238
+Run: 13, Step: 600, Loss: 0.6945563205083212
+Run: 13, Step: 900, Loss: 0.6943156596024831
+Run: 13, Step: 1200, Loss: 0.6939934313297271
+Run: 13, Step: 1500, Loss: 0.6941639757156373
+Run: 13, Step: 1800, Loss: 0.693730709552765
+Run: 13, Step: 2100, Loss: 0.6937380828460058
+Run: 13, Step: 2400, Loss: 0.6938701323668162
+Run: 13, Step: 2700, Loss: 0.6940231813987097
+Run: 13, Step: 3000, Loss: 0.6938031766812006
+Run: 13, Step: 3300, Loss: 0.7003910582264264
+Run: 13, Step: 3600, Loss: 0.6941394716501236
+Run: 13, Step: 3900, Loss: 0.6942923106749852
+Run: 13, Step: 4200, Loss: 0.6937615331013998
+Run: 13, Step: 4500, Loss: 0.6937841510772705
+Run: 13, Step: 4800, Loss: 0.6938581643501918
+Run: 13, Step: 5100, Loss: 0.6939515521128973
+Run: 13, Step: 5400, Loss: 0.6970407372713089
+Run: 13, Step: 5700, Loss: 0.6293017445628841
+Run: 13, Step: 6000, Loss: 0.6154184486111626
+Run: 13, Step: 6300, Loss: 0.554481125777432
+Run: 13, Step: 6600, Loss: 0.5393173914270786
+Run: 13, Step: 6900, Loss: 0.48291102855494805
+Run: 13, Step: 7200, Loss: 0.4162504227131073
+Run: 13, Step: 7500, Loss: 0.39141521422756037
+Run: 13, Step: 7800, Loss: 0.32221554404852176
+Cortical system training accuracy: 0.9
+Cortical system testing accuracy: 0.9375
+Cortical system analyzing accuracy: [0.5        0.34375    0.91666667]
+Cortical system is running with an LSTM
+Run: 14, Step: 0, Loss: 0.7277687788009644
+Run: 14, Step: 300, Loss: 0.697920335928599
+Run: 14, Step: 600, Loss: 0.6959161265691122
+Run: 14, Step: 900, Loss: 0.6941113382577896
+Run: 14, Step: 1200, Loss: 0.6938135721286138
+Run: 14, Step: 1500, Loss: 0.6953079098463059
+Run: 14, Step: 1800, Loss: 0.694125866095225
+Run: 14, Step: 2100, Loss: 0.6940972961982091
+Run: 14, Step: 2400, Loss: 0.6941830724477768
+Run: 14, Step: 2700, Loss: 0.6939515946308772
+Run: 14, Step: 3000, Loss: 0.6936217228571574
+Run: 14, Step: 3300, Loss: 0.6935511287053426
+Run: 14, Step: 3600, Loss: 0.6939126620690028
+Run: 14, Step: 3900, Loss: 0.6945136735836664
+Run: 14, Step: 4200, Loss: 0.6940978773434957
+Run: 14, Step: 4500, Loss: 0.6937394249439239
+Run: 14, Step: 4800, Loss: 0.6939248194297155
+Run: 14, Step: 5100, Loss: 0.6936334260304768
+Run: 14, Step: 5400, Loss: 0.6939098640282949
+Run: 14, Step: 5700, Loss: 0.6939158680041632
+Run: 14, Step: 6000, Loss: 0.69388967136542
+Run: 14, Step: 6300, Loss: 0.6946458194653193
+Run: 14, Step: 6600, Loss: 0.6940970466534296
+Run: 14, Step: 6900, Loss: 0.6938965459664662
+Run: 14, Step: 7200, Loss: 0.6942184843619664
+Run: 14, Step: 7500, Loss: 0.6935548609495163
+Run: 14, Step: 7800, Loss: 0.6938679575920105
+Cortical system training accuracy: 0.5
+Cortical system testing accuracy: 0.5
+Cortical system analyzing accuracy: [0.5 0.5 0.5]
+Cortical system is running with an LSTM
+Run: 15, Step: 0, Loss: 0.6573503017425537
+Run: 15, Step: 300, Loss: 0.6980990721782049
+Run: 15, Step: 600, Loss: 0.6951630820830663
+Run: 15, Step: 900, Loss: 0.6957984075943628
+Run: 15, Step: 1200, Loss: 0.6943141420682272
+Run: 15, Step: 1500, Loss: 0.6938946384191513
+Run: 15, Step: 1800, Loss: 0.6942454123497009
+Run: 15, Step: 2100, Loss: 0.6939042981465657
+Run: 15, Step: 2400, Loss: 0.694264815847079
+Run: 15, Step: 2700, Loss: 0.6939075299104055
+Run: 15, Step: 3000, Loss: 0.6943708076079687
+Run: 15, Step: 3300, Loss: 0.6952814787626267
+Run: 15, Step: 3600, Loss: 0.6848026003936927
+Run: 15, Step: 3900, Loss: 0.6365184309209386
+Run: 15, Step: 4200, Loss: 0.5987228454470945
+Run: 15, Step: 4500, Loss: 0.4909963492571842
+Run: 15, Step: 4800, Loss: 0.3951567747246008
+Run: 15, Step: 5100, Loss: 0.3566656168419892
+Run: 15, Step: 5400, Loss: 0.3557854350700594
+Run: 15, Step: 5700, Loss: 0.34400697826613397
+Run: 15, Step: 6000, Loss: 0.310107501584259
+Run: 15, Step: 6300, Loss: 0.35249410014041577
+Run: 15, Step: 6600, Loss: 0.5331319647764697
+Run: 15, Step: 6900, Loss: 0.33286249199417095
+Run: 15, Step: 7200, Loss: 0.31175403770215854
+Run: 15, Step: 7500, Loss: 0.32788979590778616
+Run: 15, Step: 7800, Loss: 0.21657632416514463
+Cortical system training accuracy: 0.94375
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5     0.25    0.96875]
+Cortical system is running with an LSTM
+Run: 16, Step: 0, Loss: 0.6887900233268738
+Run: 16, Step: 300, Loss: 0.6964135269323984
+Run: 16, Step: 600, Loss: 0.6945956585804621
+Run: 16, Step: 900, Loss: 0.6942145003875096
+Run: 16, Step: 1200, Loss: 0.6940828973054886
+Run: 16, Step: 1500, Loss: 0.6941784787178039
+Run: 16, Step: 1800, Loss: 0.694481169184049
+Run: 16, Step: 2100, Loss: 0.6942686206102371
+Run: 16, Step: 2400, Loss: 0.6938854146003723
+Run: 16, Step: 2700, Loss: 0.6936134614547094
+Run: 16, Step: 3000, Loss: 0.6934554886817932
+Run: 16, Step: 3300, Loss: 0.6937032854557037
+Run: 16, Step: 3600, Loss: 0.6945447266101837
+Run: 16, Step: 3900, Loss: 0.6936177849769593
+Run: 16, Step: 4200, Loss: 0.6941754853725434
+Run: 16, Step: 4500, Loss: 0.69430533071359
+Run: 16, Step: 4800, Loss: 0.6938466719786326
+Run: 16, Step: 5100, Loss: 0.6936045714219411
+Run: 16, Step: 5400, Loss: 0.6940251113971074
+Run: 16, Step: 5700, Loss: 0.6938432735204697
+Run: 16, Step: 6000, Loss: 0.6940441497166951
+Run: 16, Step: 6300, Loss: 0.6938075556357701
+Run: 16, Step: 6600, Loss: 0.6938614269097646
+Run: 16, Step: 6900, Loss: 0.6938358030716578
+Run: 16, Step: 7200, Loss: 0.6936632394790649
+Run: 16, Step: 7500, Loss: 0.6980004271864891
+Run: 16, Step: 7800, Loss: 0.6950987597306569
+Cortical system training accuracy: 0.5
+Cortical system testing accuracy: 0.5
+Cortical system analyzing accuracy: [0.5 0.5 0.5]
+Cortical system is running with an LSTM
+Run: 17, Step: 0, Loss: 0.6605894565582275
+Run: 17, Step: 300, Loss: 0.6976136366526285
+Run: 17, Step: 600, Loss: 0.6955569140116373
+Run: 17, Step: 900, Loss: 0.694629607796669
+Run: 17, Step: 1200, Loss: 0.6941864003737768
+Run: 17, Step: 1500, Loss: 0.6941752626498541
+Run: 17, Step: 1800, Loss: 0.6938674527406693
+Run: 17, Step: 2100, Loss: 0.6993177581826846
+Run: 17, Step: 2400, Loss: 0.6868628990650177
+Run: 17, Step: 2700, Loss: 0.6620139402026931
+Run: 17, Step: 3000, Loss: 0.619411920507749
+Run: 17, Step: 3300, Loss: 0.5749416828885053
+Run: 17, Step: 3600, Loss: 0.5658655783860013
+Run: 17, Step: 3900, Loss: 0.5171491387957939
+Run: 17, Step: 4200, Loss: 0.3772390087417322
+Run: 17, Step: 4500, Loss: 0.3517725252871696
+Run: 17, Step: 4800, Loss: 0.2841707859843382
+Run: 17, Step: 5100, Loss: 0.22764016018420288
+Run: 17, Step: 5400, Loss: 0.26081201916909286
+Run: 17, Step: 5700, Loss: 0.13855548584839253
+Run: 17, Step: 6000, Loss: 0.06571771626930338
+Run: 17, Step: 6300, Loss: 0.00880464746384438
+Run: 17, Step: 6600, Loss: 0.003500116536364928
+Run: 17, Step: 6900, Loss: 0.0017298123369217204
+Run: 17, Step: 7200, Loss: 0.0010498706489616438
+Run: 17, Step: 7500, Loss: 0.000725913194499294
+Run: 17, Step: 7800, Loss: 0.0005807266448098858
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.20833333 1.        ]
+Cortical system is running with an LSTM
+Run: 18, Step: 0, Loss: 0.673207700252533
+Run: 18, Step: 300, Loss: 0.6998055774966876
+Run: 18, Step: 600, Loss: 0.6940748703479767
+Run: 18, Step: 900, Loss: 0.6950782376527787
+Run: 18, Step: 1200, Loss: 0.6943920346101126
+Run: 18, Step: 1500, Loss: 0.6944404302040735
+Run: 18, Step: 1800, Loss: 0.6955609088142712
+Run: 18, Step: 2100, Loss: 0.6860402564952771
+Run: 18, Step: 2400, Loss: 0.6699549242854118
+Run: 18, Step: 2700, Loss: 0.6564228889842828
+Run: 18, Step: 3000, Loss: 0.6163078248252472
+Run: 18, Step: 3300, Loss: 0.6030576990234355
+Run: 18, Step: 3600, Loss: 0.5949247536621988
+Run: 18, Step: 3900, Loss: 0.534169010448192
+Run: 18, Step: 4200, Loss: 0.5184707915348311
+Run: 18, Step: 4500, Loss: 0.3683309300235366
+Run: 18, Step: 4800, Loss: 0.35074652208716844
+Run: 18, Step: 5100, Loss: 0.29900773426041044
+Run: 18, Step: 5400, Loss: 0.3018880723172746
+Run: 18, Step: 5700, Loss: 0.28498340600492533
+Run: 18, Step: 6000, Loss: 0.16949803344831652
+Run: 18, Step: 6300, Loss: 0.06482787845353281
+Run: 18, Step: 6600, Loss: 0.004899473705431111
+Run: 18, Step: 6900, Loss: 0.001985788319668013
+Run: 18, Step: 7200, Loss: 0.0011880182442913659
+Run: 18, Step: 7500, Loss: 0.0007437303512038085
+Run: 18, Step: 7800, Loss: 0.0004911295338093188
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.16666667 1.        ]
+Cortical system is running with an LSTM
+Run: 19, Step: 0, Loss: 0.6861310601234436
+Run: 19, Step: 300, Loss: 0.6975434402624766
+Run: 19, Step: 600, Loss: 0.6945971783002217
+Run: 19, Step: 900, Loss: 0.6943881257375082
+Run: 19, Step: 1200, Loss: 0.6938755365212759
+Run: 19, Step: 1500, Loss: 0.6939513285954794
+Run: 19, Step: 1800, Loss: 0.6946699676911036
+Run: 19, Step: 2100, Loss: 0.6938232596715291
+Run: 19, Step: 2400, Loss: 0.6943920717636745
+Run: 19, Step: 2700, Loss: 0.694806613723437
+Run: 19, Step: 3000, Loss: 0.6945853545268377
+Run: 19, Step: 3300, Loss: 0.6937446256478628
+Run: 19, Step: 3600, Loss: 0.6937356742223104
+Run: 19, Step: 3900, Loss: 0.6941168177127838
+Run: 19, Step: 4200, Loss: 0.6938372892141342
+Run: 19, Step: 4500, Loss: 0.6938497924804687
+Run: 19, Step: 4800, Loss: 0.6939968478679657
+Run: 19, Step: 5100, Loss: 0.6940019635359446
+Run: 19, Step: 5400, Loss: 0.6943198943138122
+Run: 19, Step: 5700, Loss: 0.694307097196579
+Run: 19, Step: 6000, Loss: 0.6938925957679749
+Run: 19, Step: 6300, Loss: 0.6936863646904627
+Run: 19, Step: 6600, Loss: 0.6936768428484599
+Run: 19, Step: 6900, Loss: 0.6936881186564764
+Run: 19, Step: 7200, Loss: 0.693585950533549
+Run: 19, Step: 7500, Loss: 0.6937684524059295
+Run: 19, Step: 7800, Loss: 0.6956561466058095
+Cortical system training accuracy: 0.5
+Cortical system testing accuracy: 0.5
+Cortical system analyzing accuracy: [0.5 0.5 0.5]
+num of checkpoints:  161
+num of runs:  20
+Doing analysis calc_ratio
+

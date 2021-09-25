@@ -33,7 +33,7 @@ def boxplot_ratio_accs(df, args_dict, fig, ax):
         if is_accs_plot:
             df_r, df_r_a_tr = df
         else:
-            df_r= df
+            df_r = df
 
         if analyze_name == 'analyze_ttest':
             val_name = 'tvalues_ttest'
