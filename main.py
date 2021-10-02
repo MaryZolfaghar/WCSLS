@@ -45,15 +45,15 @@ parser.add_argument('--cortical_task', type=str, default='face_task',
                     help='The task for the cortical model - either face_task or wine_task')
 parser.add_argument('--image_dir', default='images/',
                     help='Path to directory containing face images')
-parser.add_argument('--N_cortical', type=int, default=6000,
+parser.add_argument('--N_cortical', type=int, default=6000, 
                     help='Number of steps for training cortical system')
 parser.add_argument('--balanced', action='store_true', # ToDo:change this to store_true
                     help='Balance wins and losses of each face other than (0,0), (3,3). Only works with wine dataset')                 
-parser.add_argument('--bs_cortical', type=int, default=1,
+parser.add_argument('--bs_cortical', type=int, default=32,
                     help='Minibatch size for cortical system')
 parser.add_argument('--lr_cortical', type=float, default=0.001,
                     help='Learning rate for cortical system')
-parser.add_argument('--nruns_cortical', type=int, default=2,
+parser.add_argument('--nruns_cortical', type=int, default=20,
                     help='Number of runs for cortical system')
 parser.add_argument('--checkpoints', type=int, default=50, #50 # the name is confusing, change to something like checkpoint_every or cp_every 
                     help='Number of steps during training before analyzing the results')
@@ -122,14 +122,14 @@ def main(args):
     # cortical_runs_bef_c, cortical_runs_aft_c = [] , []
     # cortical_runs_bef_inc, cortical_runs_aft_inc = [] , [] 
     congruencies = []
-    cortical_runs_ratio_diffs = [] 
+    cortical_runs_sbs = []
     for run in range(args.nruns_cortical):
         n_gradient_ctx, n_gradient_f1, n_gradient_f2 = [], [], []
         n_gradient_ctx_cong, n_gradient_f1_cong, n_gradient_f2_cong = [], [], []
         n_gradient_ctx_incong, n_gradient_f1_incong, n_gradient_f2_incong = [], [], []
         cortical_run = []
         # one list for cong/incong
-        cortical_run_ratio_diffs = [] # tuples of (diff, cong/incong)
+        cortical_run_sbs = [] # tuples of (dist, cong/incong)
         # cortical_run_bef_c, cortical_run_aft_c = [] , [] 
         # cortical_run_bef_inc, cortical_run_aft_inc = [] , [] 
         if args.cortical_model=='rnn':
@@ -255,14 +255,14 @@ def main(args):
                             n_gradient_ctx_incong.append(n_grd_ctx[ii].numpy())
                             n_gradient_f1_incong.append(n_grd_f1[ii].numpy())
                             n_gradient_f2_incong.append(n_grd_f2[ii].numpy())
-                # -------------------------------------------------------------------------------
-                # analyze before taking a step
-                # -------------------------------------------------------------------------------
-                if args.sbs_analysis:
-                    if i % args.sbs_every == 0:
-                        cortical_result_b = analyze_cortical(cortical_system, test_data, analyze_loader, args)
-                        dist_result_b      = calc_dist(args, test_data, cortical_result_b, dist_results=None)    
-                        ratio_b           = calc_ratio(args, test_data, cortical_result_b, dist_result_b)
+                # # -------------------------------------------------------------------------------
+                # # analyze before taking a step
+                # # -------------------------------------------------------------------------------
+                # if args.sbs_analysis:
+                #     if i % args.sbs_every == 0:
+                #         cortical_result_b = analyze_cortical(cortical_system, test_data, analyze_loader, args)
+                #         dist_result_b      = calc_dist(args, test_data, cortical_result_b, dist_results=None)    
+                #         ratio_b           = calc_ratio(args, test_data, cortical_result_b, dist_result_b)
                         
                 # -------------------------------------------------------------------------------
                 # take a step
@@ -293,21 +293,38 @@ def main(args):
                         # diff = raio_a - ratio_b
                         # scalar cong, incong
 
-                        cortical_result_a = analyze_cortical(cortical_system, test_data, analyze_loader, args)
+                        cortical_result_a  = analyze_cortical(cortical_system, test_data, analyze_loader, args)
                         dist_result_a      = calc_dist(args, test_data, cortical_result_a, dist_results=None)    
-                        ratio_a           = calc_ratio(args, test_data, cortical_result_a, dist_result_a)
-                        diff_ratio = ratio_a['ratio_embed'] - ratio_b['ratio_embed']
-                        cortical_run_ratio_diffs.append((diff_ratio, cong))
+                        dist_result_hidd  = extract_hidd_dist(dist_result_a)
+
+                        cortical_train_acc, _ , cong_train_acc, incong_train_acc = test(meta, cortical_system, train_loader, args)
+                        cortical_test_acc, _, cong_test_acc, incong_test_acc     = test(meta, cortical_system, test_loader, args)
+                        cortical_system.analyze=True
+                        cortical_analyze_acc, cortical_analyze_correct, _, _     = test(meta, cortical_system, analyze_loader, args)
+                        cortical_system.analyze=False
+
+                        cortical_result_sbs = {}
+                        cortical_result_sbs['dist_result_a']    = (dist_result_hidd, cong)
+                        cortical_result_sbs['train_acc']        = cortical_train_acc
+                        cortical_result_sbs['test_acc']         = cortical_test_acc
+                        cortical_result_sbs['cong_train_acc']   = cong_train_acc
+                        cortical_result_sbs['incong_train_acc'] = incong_train_acc
+                        cortical_result_sbs['cong_test_acc']    = cong_test_acc
+                        cortical_result_sbs['incong_test_acc']  = incong_test_acc
+                        cortical_result_sbs['analyze_acc']      = cortical_analyze_acc
+                        cortical_result_sbs['analyze_correct']  = cortical_analyze_correct
+
+                        cortical_run_sbs.append(cortical_result_sbs)
 
                 # -------------------------------------------------------------------------------
                 # analyze after taking a step - each checkpoint
                 # -------------------------------------------------------------------------------
                 if i % args.checkpoints == 0: 
                     cortical_train_acc, _ , cong_train_acc, incong_train_acc = test(meta, cortical_system, train_loader, args)
-                    cortical_test_acc, _, cong_test_acc, incong_test_acc  = test(meta, cortical_system, test_loader, args)
-                    cortical_system.analyze=True
-                    cortical_analyze_acc, cortical_analyze_correct, _, _ = test(meta, cortical_system, analyze_loader, args)
-                    cortical_system.analyze=False
+                    cortical_test_acc, _, cong_test_acc, incong_test_acc     = test(meta, cortical_system, test_loader, args)
+                    cortical_system.analyze = True
+                    cortical_analyze_acc, cortical_analyze_correct, _, _     = test(meta, cortical_system, analyze_loader, args)
+                    cortical_system.analyze = False
                     cortical_result = analyze_cortical(cortical_system, test_data, analyze_loader, args)
                     cortical_result['train_acc'] = cortical_train_acc
                     cortical_result['test_acc'] = cortical_test_acc
@@ -342,7 +359,7 @@ def main(args):
                     break
                 i += 1
         cortical_runs.append(cortical_run)
-        cortical_runs_ratio_diffs.append(cortical_run_ratio_diffs)
+        cortical_runs_sbs.append(cortical_run_sbs)
         
         print("Cortical system training accuracy:", cortical_train_acc)
         print("Cortical system testing accuracy:", cortical_test_acc)
@@ -368,7 +385,7 @@ def main(args):
     if args.sbs_analysis:
         # 20 runs, each list of tuples (diff, congruency), save these
         # 20 sets of two lines(for cong and incong), diff x
-        cortical_results['cortical_runs_ratio_diffs'] = cortical_runs_ratio_diffs
+        cortical_results['cortical_runs_sbs'] = cortical_runs_sbs
     
     if not args.use_em:
         episodic_results = {}

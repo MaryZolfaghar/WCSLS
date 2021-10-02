@@ -36,10 +36,10 @@ python main.py \
 --order_ctx 'first' \
 --sbs_analysis \
 --truncated_mlp 'false' \
---out_file 'ctxF_results_rnn_sbs.P' \
+--out_file 'ctxF_results_rnn_sbs_e1.P' \
 --seed 0 \
 --use_images \
---print_every 300 \
+--print_every 200 \
 --N_episodic 1000 \
 --bs_episodic 16 \
 --lr_episodic 0.001 \

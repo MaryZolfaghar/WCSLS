@@ -663,6 +663,14 @@ def calc_ratio(args, test_data, cortical_result, dist_results):
     
     return ratio_results
 
+def extract_hidd_dist(dist_results):
+    # hiddens
+    cong_hidd_dists = dist_results['cong_dist_results']['cong_hidd_dists']
+    incong_hidd_dists = dist_results['incong_dist_results']['incong_hidd_dists']
+    dist_result_hidd = {'cong_hidd_dists': cong_hidd_dists, 'incong_hidd_dists': incong_hidd_dists}
+    
+    return dist_result_hidd
+
 def analyze_ttest(args, test_data, cortical_result, dist_results):  
     cong_res = dist_results['cong_dist_results']
     incong_res = dist_results['incong_dist_results']
