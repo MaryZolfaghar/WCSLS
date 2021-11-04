@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH -p local
 #SBATCH -A ecortex
-#SBATCH --output=run_rnn_ctxF_sbs_sbatch.out
+#SBATCH --output=sbatch_main_analysis.out
 #SBATCH --mem=8G
 #SBATCH --gres=gpu:1
 #SBATCH -c 1
