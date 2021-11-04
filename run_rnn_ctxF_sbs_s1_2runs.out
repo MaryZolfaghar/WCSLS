@@ -1,0 +1,98 @@
+Running on local03
+Process rnn with batchsize=1, lr=15e-3 starts
+Namespace(N_contexts=2, N_cortical=8000, N_episodic=1000, N_responses='one', analysis_funcs=[<function calc_ratio at 0x7fdf6c846d08>], analysis_names=['calc_ratio'], balanced=False, bs_cortical=1, bs_episodic=16, checkpoints=50, cortical_model='rnn', cortical_task='face_task', dimred_method='pca', image_dir='images/', is_lesion=False, lesion_p=0.1, lr_cortical=0.0015, lr_episodic=0.001, measure_grad_norm=False, nruns_cortical=2, order_ctx='first', out_file='ctxF_results_rnn_sbs_e1_tmp.P', print_every=200, sbs_analysis=True, sbs_every=1, seed=0, truncated_mlp='false', use_cuda=False, use_em=False, use_images=True)
+Using CUDA:  False
+Cortical system is running with an LSTM
+Run: 0, Step: 0, Loss: 0.6859548687934875
+<string>:6: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray
+Run: 0, Step: 200, Loss: 0.6968107581138611
+Run: 0, Step: 400, Loss: 0.6961838388442994
+Run: 0, Step: 600, Loss: 0.6950125086307526
+Run: 0, Step: 800, Loss: 0.7045969502627849
+Run: 0, Step: 1000, Loss: 0.6950716611742973
+Run: 0, Step: 1200, Loss: 0.694278065264225
+Run: 0, Step: 1400, Loss: 0.6941017273068428
+Run: 0, Step: 1600, Loss: 0.6938170489668846
+Run: 0, Step: 1800, Loss: 0.6937690100073814
+Run: 0, Step: 2000, Loss: 0.6937109100818634
+Run: 0, Step: 2200, Loss: 0.6937013027071953
+Run: 0, Step: 2400, Loss: 0.6936468350887298
+Run: 0, Step: 2600, Loss: 0.6937826952338219
+Run: 0, Step: 2800, Loss: 0.6950366994738579
+Run: 0, Step: 3000, Loss: 0.6941238778829575
+Run: 0, Step: 3200, Loss: 0.6939533871412277
+Run: 0, Step: 3400, Loss: 0.6881304607354104
+Run: 0, Step: 3600, Loss: 0.6531961833685637
+Run: 0, Step: 3800, Loss: 0.6236662323866039
+Run: 0, Step: 4000, Loss: 0.583053923300904
+Run: 0, Step: 4200, Loss: 0.524350704479948
+Run: 0, Step: 4400, Loss: 0.5006261832514065
+Run: 0, Step: 4600, Loss: 0.400093450154622
+Run: 0, Step: 4800, Loss: 0.375065143462725
+Run: 0, Step: 5000, Loss: 0.3260012917366451
+Run: 0, Step: 5200, Loss: 0.3148347456688271
+Run: 0, Step: 5400, Loss: 0.339179871653281
+Run: 0, Step: 5600, Loss: 0.30564810329182507
+Run: 0, Step: 5800, Loss: 0.3174588181513508
+Run: 0, Step: 6000, Loss: 0.3035905841193714
+Run: 0, Step: 6200, Loss: 0.26021955415434866
+Run: 0, Step: 6400, Loss: 0.321388559904988
+Run: 0, Step: 6600, Loss: 0.1702425368557317
+Run: 0, Step: 6800, Loss: 0.1272258183503276
+Run: 0, Step: 7000, Loss: 0.030957498382707983
+Run: 0, Step: 7200, Loss: 0.009207155274555063
+Run: 0, Step: 7400, Loss: 0.003753005494883439
+Run: 0, Step: 7600, Loss: 0.0021942316069644362
+Run: 0, Step: 7800, Loss: 0.0015626348936429225
+Run: 0, Step: 8000, Loss: 0.0011227432630170854
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5        0.22916667 1.        ]
+Cortical system is running with an LSTM
+Run: 1, Step: 0, Loss: 0.6480395197868347
+Run: 1, Step: 200, Loss: 0.6985553035140037
+Run: 1, Step: 400, Loss: 0.6968620344996452
+Run: 1, Step: 600, Loss: 0.6953695270419121
+Run: 1, Step: 800, Loss: 0.6948520410060882
+Run: 1, Step: 1000, Loss: 0.6943495064973831
+Run: 1, Step: 1200, Loss: 0.6942441898584366
+Run: 1, Step: 1400, Loss: 0.6936178216338158
+Run: 1, Step: 1600, Loss: 0.6945979306101799
+Run: 1, Step: 1800, Loss: 0.6931737914681435
+Run: 1, Step: 2000, Loss: 0.68034260481596
+Run: 1, Step: 2200, Loss: 0.5840288933832198
+Run: 1, Step: 2400, Loss: 0.48704254772514105
+Run: 1, Step: 2600, Loss: 0.37187593514537637
+Run: 1, Step: 2800, Loss: 0.351416145696308
+Run: 1, Step: 3000, Loss: 0.3226747510104923
+Run: 1, Step: 3200, Loss: 0.32547226658706874
+Run: 1, Step: 3400, Loss: 0.34589444461035695
+Run: 1, Step: 3600, Loss: 0.2721940617271217
+Run: 1, Step: 3800, Loss: 0.29535972324668974
+Run: 1, Step: 4000, Loss: 0.2696256468517722
+Run: 1, Step: 4200, Loss: 0.2624048299025057
+Run: 1, Step: 4400, Loss: 0.4113740856236139
+Run: 1, Step: 4600, Loss: 0.27158475558076955
+Run: 1, Step: 4800, Loss: 0.2745009504075581
+Run: 1, Step: 5000, Loss: 0.2937786472119693
+Run: 1, Step: 5200, Loss: 0.23208099609763777
+Run: 1, Step: 5400, Loss: 0.24316655127657966
+Run: 1, Step: 5600, Loss: 0.22403249539420844
+Run: 1, Step: 5800, Loss: 0.19763160439648053
+Run: 1, Step: 6000, Loss: 0.17265682009686018
+Run: 1, Step: 6200, Loss: 0.0718787261592907
+Run: 1, Step: 6400, Loss: 0.21126882215903603
+Run: 1, Step: 6600, Loss: 0.060845818747130166
+Run: 1, Step: 6800, Loss: 0.012646057841944511
+Run: 1, Step: 7000, Loss: 0.007548035204675685
+Run: 1, Step: 7200, Loss: 0.003582034010125277
+Run: 1, Step: 7400, Loss: 0.0026383287620258856
+Run: 1, Step: 7600, Loss: 0.002151444397649307
+Run: 1, Step: 7800, Loss: 0.0015059394339007426
+Run: 1, Step: 8000, Loss: 0.001295212422936487
+Cortical system training accuracy: 1.0
+Cortical system testing accuracy: 1.0
+Cortical system analyzing accuracy: [0.5     0.21875 1.     ]
+num of checkpoints:  161
+num of runs:  2
+Doing analysis calc_ratio

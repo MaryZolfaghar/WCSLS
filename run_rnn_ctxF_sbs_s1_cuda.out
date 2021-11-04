@@ -1,0 +1,17 @@
+Running on local02
+Process rnn with batchsize=1, lr=15e-3 starts
+Namespace(N_contexts=2, N_cortical=8000, N_episodic=1000, N_responses='one', analysis_funcs=[<function calc_ratio at 0x7f15f2b87d08>], analysis_names=['calc_ratio'], balanced=False, bs_cortical=1, bs_episodic=16, checkpoints=50, cortical_model='rnn', cortical_task='face_task', dimred_method='pca', image_dir='images/', is_lesion=False, lesion_p=0.1, lr_cortical=0.0015, lr_episodic=0.001, measure_grad_norm=False, nruns_cortical=2, order_ctx='first', out_file='ctxF_results_rnn_sbs_e1_cuda.P', print_every=200, sbs_analysis=True, sbs_every=1, seed=0, truncated_mlp='false', use_cuda=True, use_em=False, use_images=True)
+Using CUDA:  True
+Cortical system is running with an LSTM
+Run: 0, Step: 0, Loss: 0.6859548687934875
+<string>:6: VisibleDeprecationWarning: Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray
+Traceback (most recent call last):
+  File "main.py", line 425, in <module>
+    main(args)
+  File "main.py", line 232, in main
+    loss.backward()
+  File "/home/mazlfghr/.conda/envs/csls/lib/python3.6/site-packages/torch/tensor.py", line 245, in backward
+    torch.autograd.backward(self, gradient, retain_graph, create_graph, inputs=inputs)
+  File "/home/mazlfghr/.conda/envs/csls/lib/python3.6/site-packages/torch/autograd/__init__.py", line 147, in backward
+    allow_unreachable=True, accumulate_grad=True)  # allow_unreachable flag
+RuntimeError: cudnn RNN backward can only be called in training mode

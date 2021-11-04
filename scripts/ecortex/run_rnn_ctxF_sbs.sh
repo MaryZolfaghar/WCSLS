@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH -p localLimited
 #SBATCH -A ecortex
-#SBATCH --output=run_rnn_ctxF_sbs_s1.out
+#SBATCH --output=run_rnn_ctxF_sbs_e1.out
 
 export HOME=`getent passwd $USER | cut -d':' -f6`
 export PYTHONUNBUFFERED=1
