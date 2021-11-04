@@ -13,7 +13,7 @@ echo Running on $HOSTNAME
 source /usr/local/anaconda3/etc/profile.d/conda.sh
 conda activate /home/mazlfghr/.conda/envs/csls
 
-echo "Process sbatch rnn with batchsize=1, lr=15e-3 starts"
+echo "Process sbatch main analysis"
 
 sbatch scripts/ecortex/run_rnn_ctxF_ecortex.sh &
 sbatch scripts/ecortex/run_rnn_ctxF_lesion0.1_ecortex.sh &
