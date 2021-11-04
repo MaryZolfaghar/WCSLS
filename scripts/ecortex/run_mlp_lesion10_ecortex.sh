@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH -p localLimited
 #SBATCH -A ecortex
+#SBATCH --mem=2G
+#SBATCH --gres=gpu:1
 #SBATCH --output=results_mlp_lesionp10.out
 
 export HOME=`getent passwd $USER | cut -d':' -f6`

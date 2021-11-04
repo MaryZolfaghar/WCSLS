@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 #SBATCH -p localLimited
 #SBATCH -A ecortex
-#SBATCH --output=results_mlp.out
+#SBATCH --mem=2G
+#SBATCH --gres=gpu:1
+#SBATCH --output=mlp.%j.out
 
 export HOME=`getent passwd $USER | cut -d':' -f6`
 export PYTHONUNBUFFERED=1

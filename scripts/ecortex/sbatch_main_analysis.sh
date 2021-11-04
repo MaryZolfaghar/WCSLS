@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH -p local
 #SBATCH -A ecortex
-#SBATCH --output=sbatch_main_analysis.out
-#SBATCH --mem=8G
+#SBATCH --output=sbatch_main_analysis.%j.out
+#SBATCH --mem=2G
 #SBATCH --gres=gpu:1
 #SBATCH -c 1
 
